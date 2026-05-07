@@ -13,9 +13,7 @@ type SqlPrinterPath = {
   getValue(): SqlAstNode;
 };
 
-type SqlPrinterOptions = {
-  tabWidth?: number;
-};
+type SqlPrinterOptions = {};
 
 type SqlPrinter = {
   print(path: SqlPrinterPath, options?: SqlPrinterOptions): string;

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import dedent from "dedent-js";
 import prettier from "prettier";
 import { describe, expect, it } from "vitest";
-import plugin from "../dist/index.js";
+import plugin from "../src/index.js";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const fixturePath = path.resolve(rootDir, "../example.sql");
@@ -14,7 +14,6 @@ async function format(source: string): Promise<string> {
   return prettier.format(source, {
     parser: "sql",
     plugins: [plugin],
-    tabWidth: 4,
   });
 }
 
@@ -165,6 +164,30 @@ describe("prettier-plugin-sql", () => {
   });
 
   describe("indentation", () => {
+    it("makes the indentation equal to 4 spaces", async () => {
+      const input = dedent`
+        CREATE TABLE IF NOT EXISTS history_iref_spec_cluster_mapping (
+          norm_id  bigint  null,
+          block_id integer null,
+          query    text    null,
+          id       integer null,
+          at       js_date null,
+          "by"     integer null
+        );
+      `;
+      const expected = `${dedent`
+        CREATE TABLE IF NOT EXISTS history_iref_spec_cluster_mapping (
+            norm_id  bigint  null,
+            block_id integer null,
+            query    text    null,
+            id       integer null,
+            at       js_date null,
+            "by"     integer null
+        );
+      `}\n`;
+      await expectFormat(input, expected);
+    });
+
     it("fixes indentation not only at the first line", async () => {
       const input = dedent`
         CREATE TABLE IF NOT EXISTS shared_database (

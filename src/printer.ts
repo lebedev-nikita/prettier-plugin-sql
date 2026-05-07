@@ -1,9 +1,4 @@
-import type {
-  ColumnEntry,
-  CreateTableStatement,
-  SqlRootNode,
-  SqlStatement,
-} from "./types.js";
+import type { ColumnEntry, CreateTableStatement, SqlRootNode, SqlStatement } from "./types.js";
 
 const STRUCTURAL_KEYWORDS = new Set([
   "by",
@@ -17,12 +12,12 @@ const STRUCTURAL_KEYWORDS = new Set([
   "unique",
 ]);
 
-type PrintOptions = {
-  tabWidth?: number;
-};
+type PrintOptions = {};
+
+const SQL_TAB_WIDTH = 4;
 
 export function printSql(ast: SqlRootNode, options: PrintOptions = {}): string {
-  const indentation = " ".repeat(options.tabWidth ?? 2);
+  const indentation = " ".repeat(SQL_TAB_WIDTH);
   const body = ast.statements
     .map((statement) => printStatement(statement, indentation))
     .join("\n\n");
@@ -36,8 +31,8 @@ function printStatement(statement: SqlStatement, indentation: string): string {
     case "create_type_enum":
       return [
         `CREATE TYPE ${statement.name} AS ENUM (`,
-        ...statement.items.map((item, index) =>
-          `${indentation}${item}${index === statement.items.length - 1 ? "" : ","}`,
+        ...statement.items.map(
+          (item, index) => `${indentation}${item}${index === statement.items.length - 1 ? "" : ","}`
         ),
         ");",
       ].join("\n");
@@ -75,7 +70,9 @@ function printCreateTable(statement: CreateTableStatement, indentation: string):
     entryLines.push(`${content}${isLast ? "" : ","}`);
   });
 
-  const lines = [`CREATE TABLE ${statement.ifNotExists ? "IF NOT EXISTS " : ""}${statement.name} (`];
+  const lines = [
+    `CREATE TABLE ${statement.ifNotExists ? "IF NOT EXISTS " : ""}${statement.name} (`,
+  ];
   lines.push(...entryLines.map((line) => `${indentation}${line}`));
 
   let closing = ")";
@@ -90,7 +87,7 @@ function printCreateTable(statement: CreateTableStatement, indentation: string):
 
 function formatColumn(
   entry: ColumnEntry,
-  widths: { nameWidth: number; typeWidth: number; nullWidth: number },
+  widths: { nameWidth: number; typeWidth: number; nullWidth: number }
 ): string {
   const base = `${entry.name.padEnd(widths.nameWidth)} ${entry.dataType.padEnd(widths.typeWidth)}`;
 
@@ -158,5 +155,8 @@ function formatStructuralSql(source: string): string {
 }
 
 function normalizeUnsupported(source: string): string {
-  return `${source.trim().replace(/[ \t]+\n/g, "\n").trimEnd()};`;
+  return `${source
+    .trim()
+    .replace(/[ \t]+\n/g, "\n")
+    .trimEnd()};`;
 }
