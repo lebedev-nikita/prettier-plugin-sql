@@ -27,6 +27,23 @@ describe("prettier-plugin-sql", () => {
       await expect(format(exampleSql)).resolves.toBe(exampleSql);
     });
 
+    it("formats multiple supported statements from one input through the PostgreSQL parser", async () => {
+      const input = dedent`
+        create domain js_date as timestamptz(3);
+        create type ai_request_type as enum('text','code');
+      `;
+      const expected = `${dedent`
+        CREATE DOMAIN js_date AS timestamptz(3);
+
+        CREATE TYPE ai_request_type AS ENUM (
+          'text',
+          'code'
+        );
+      `}\n`;
+
+      await expectFormat(input, expected);
+    });
+
     it("is idempotent for the canonical example fixture", async () => {
       const once = await format(exampleSql);
       const twice = await format(once);
@@ -260,5 +277,9 @@ describe("prettier-plugin-sql", () => {
   it("leaves unsupported SQL unchanged apart from trailing semicolon normalization", async () => {
     const input = "select * from users where id = 1";
     await expectFormat(input, "select * from users where id = 1;\n");
+  });
+
+  it("throws for invalid PostgreSQL syntax instead of guessing", async () => {
+    await expect(format("create table broken (id integer,,)")).rejects.toThrow();
   });
 });

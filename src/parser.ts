@@ -1,3 +1,12 @@
+import { loadModule, parseSync } from "pgsql-parser";
+import type {
+  CreateDomainStmt,
+  CreateEnumStmt,
+  CreateStmt,
+  Node,
+  ParseResult,
+  RawStmt,
+} from "@pgsql/types";
 import type {
   CreateDomainStatement,
   CreateTableStatement,
@@ -9,6 +18,8 @@ import type {
   SqlStatement,
   TableEntry,
 } from "./types.js";
+
+await loadModule();
 
 const CLAUSE_STARTERS = new Set([
   "not",
@@ -24,7 +35,11 @@ const CLAUSE_STARTERS = new Set([
 ]);
 
 export function parse(text: string): SqlRootNode {
-  const statements = splitStatements(text).map((statement) => parseStatement(statement));
+  const parsed = parseSync(text) as ParseResult;
+  const rawStatements = splitStatements(text);
+  const statements = (parsed.stmts ?? []).map((statement, index, allStatements) =>
+    parseStatement(text, rawStatements[index], statement, index, allStatements),
+  );
 
   return {
     type: "sql-root",
@@ -33,84 +48,155 @@ export function parse(text: string): SqlRootNode {
   };
 }
 
-function parseStatement(rawStatement: string): SqlStatement {
-  const statement = rawStatement.trim();
+function parseStatement(
+  source: string,
+  rawStatement: string | undefined,
+  statement: RawStmt,
+  index: number,
+  allStatements: RawStmt[],
+): SqlStatement {
+  const raw = rawStatement ?? sliceStatementSource(source, statement, allStatements[index + 1]);
+  const node = statement.stmt;
 
-  return (
-    parseCreateDomain(statement) ??
-    parseCreateType(statement) ??
-    parseCreateTable(statement) ?? {
-      type: "unsupported",
-      raw: statement,
-    }
-  );
+  if (node && "CreateDomainStmt" in node) {
+    return parseCreateDomain(node.CreateDomainStmt, raw) ?? unsupportedStatement(raw);
+  }
+
+  if (node && "CreateEnumStmt" in node) {
+    return parseCreateType(node.CreateEnumStmt, raw) ?? unsupportedStatement(raw);
+  }
+
+  if (node && "CreateStmt" in node) {
+    return parseCreateTable(node.CreateStmt, raw) ?? unsupportedStatement(raw);
+  }
+
+  return unsupportedStatement(raw);
 }
 
-function parseCreateDomain(statement: string): CreateDomainStatement | null {
-  const match = statement.match(/^create\s+domain\s+(.+?)\s+as\s+(.+)$/is);
+function parseCreateDomain(
+  statement: CreateDomainStmt,
+  rawStatement: string,
+): CreateDomainStatement | null {
+  const dataTypeMatch = rawStatement.match(/^create\s+domain\s+.+?\s+as\s+(.+)$/is);
+  const name = joinQualifiedName(statement.domainname);
 
-  if (!match) {
+  if (!dataTypeMatch || !name) {
     return null;
   }
 
   return {
     type: "create_domain",
-    name: match[1]!.trim(),
-    dataType: normalizeInlineSql(match[2]!),
-    raw: statement,
+    name,
+    dataType: normalizeInlineSql(dataTypeMatch[1]!),
+    raw: rawStatement,
   };
 }
 
-function parseCreateType(statement: string): CreateTypeEnumStatement | null {
-  const match = statement.match(/^create\s+type\s+(.+?)\s+as\s+enum\s*\(([\s\S]*)\)$/i);
+function parseCreateType(
+  statement: CreateEnumStmt,
+  rawStatement: string,
+): CreateTypeEnumStatement | null {
+  const name = joinQualifiedName(statement.typeName);
+  const items = (statement.vals ?? []).map((node) => {
+    const value = readStringNode(node);
+    return value ? `'${value.replace(/'/g, "''")}'` : "";
+  });
 
-  if (!match) {
+  if (!name || items.some((item) => !item)) {
     return null;
   }
 
-  const items = splitCommaSeparated(match[2]!).map((item) => normalizeInlineSql(item));
-
   return {
     type: "create_type_enum",
-    name: match[1]!.trim(),
-    items,
-    raw: statement,
+    name,
+    items: items as string[],
+    raw: rawStatement,
   };
 }
 
-function parseCreateTable(statement: string): CreateTableStatement | null {
-  const headerMatch = statement.match(/^create\s+table\s+(if\s+not\s+exists\s+)?(.+?)\s*\(/i);
+function parseCreateTable(statement: CreateStmt, rawStatement: string): CreateTableStatement | null {
+  if (!isSupportedCreateTable(statement)) {
+    return null;
+  }
+
+  const headerMatch = rawStatement.match(/^create\s+table\s+(if\s+not\s+exists\s+)?(.+?)\s*\(/i);
 
   if (!headerMatch) {
     return null;
   }
 
-  const bodyStart = statement.indexOf("(", headerMatch[0].length - 1);
-  const bodyEnd = findMatchingParen(statement, bodyStart);
+  const bodyStart = rawStatement.indexOf("(", headerMatch[0].length - 1);
+  const bodyEnd = findMatchingParen(rawStatement, bodyStart);
 
   if (bodyStart === -1 || bodyEnd === -1) {
     return null;
   }
 
-  const body = statement.slice(bodyStart + 1, bodyEnd);
-  const suffix = normalizeInlineSql(statement.slice(bodyEnd + 1));
+  const body = rawStatement.slice(bodyStart + 1, bodyEnd);
+  const suffix = normalizeInlineSql(rawStatement.slice(bodyEnd + 1));
   const rawEntries = splitTableEntries(body);
   const entries = rawEntries
     .map(parseTableEntry)
     .filter((entry): entry is TableEntry => entry !== null);
+  const nonCommentEntries = rawEntries.filter((entry) => extractLeadingComments(entry).content).length;
 
-  if (entries.length !== rawEntries.length) {
+  if (entries.length !== rawEntries.length || nonCommentEntries !== (statement.tableElts ?? []).length) {
     return null;
   }
 
   return {
     type: "create_table",
-    ifNotExists: Boolean(headerMatch[1]),
+    ifNotExists: Boolean(statement.if_not_exists),
     name: headerMatch[2]!.trim(),
     entries,
     suffix,
-    raw: statement,
+    raw: rawStatement,
   };
+}
+
+function unsupportedStatement(rawStatement: string): SqlStatement {
+  return {
+    type: "unsupported",
+    raw: normalizeStatementSource(rawStatement),
+  };
+}
+
+function isSupportedCreateTable(statement: CreateStmt): boolean {
+  const entries = statement.tableElts ?? [];
+
+  return entries.every((entry) => {
+    if ("ColumnDef" in entry) {
+      return true;
+    }
+
+    return "Constraint" in entry;
+  });
+}
+
+function readStringNode(node: Node): string {
+  return "String" in node ? (node.String.sval ?? "") : "";
+}
+
+function joinQualifiedName(nodes: Node[] | undefined): string {
+  return (nodes ?? [])
+    .map((node) => {
+      const value = readStringNode(node);
+      return /^[A-Za-z_][A-Za-z0-9_$]*$/.test(value) ? value : `"${value.replace(/"/g, '""')}"`;
+    })
+    .join(".");
+}
+
+function sliceStatementSource(source: string, statement: RawStmt, nextStatement?: RawStmt): string {
+  const start = statement.stmt_location ?? 0;
+  const end =
+    nextStatement?.stmt_location ??
+    ((statement.stmt_len ?? 0) > 0 ? start + (statement.stmt_len ?? 0) : source.length);
+
+  return normalizeStatementSource(source.slice(start, end));
+}
+
+function normalizeStatementSource(source: string): string {
+  return source.trim().replace(/;+\s*$/, "");
 }
 
 function parseTableEntry(entry: string): TableEntry | null {
@@ -228,6 +314,70 @@ function findNullabilityTokens(tokens: string[]): NullabilityMatch | null {
   return null;
 }
 
+function splitTableEntries(source: string): string[] {
+  const entries: string[] = [];
+  let start = 0;
+  let depth = 0;
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let inLineComment = false;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index]!;
+    const nextChar = source[index + 1];
+
+    if (inLineComment) {
+      if (char === "\n") {
+        inLineComment = false;
+      }
+      continue;
+    }
+
+    if (!inDoubleQuote && char === "'" && source[index - 1] !== "\\") {
+      inSingleQuote = !inSingleQuote;
+      continue;
+    }
+
+    if (!inSingleQuote && char === '"') {
+      inDoubleQuote = !inDoubleQuote;
+      continue;
+    }
+
+    if (inSingleQuote || inDoubleQuote) {
+      continue;
+    }
+
+    if (char === "-" && nextChar === "-") {
+      inLineComment = true;
+      index += 1;
+      continue;
+    }
+
+    if (char === "(") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === ")") {
+      depth -= 1;
+      continue;
+    }
+
+    if (char === "," && depth === 0) {
+      entries.push(source.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+
+  const tail = source.slice(start).trim();
+
+  if (tail) {
+    entries.push(tail);
+  }
+
+  return entries.filter(Boolean);
+}
+
 function splitStatements(source: string): string[] {
   const statements: string[] = [];
   let start = 0;
@@ -295,113 +445,6 @@ function splitStatements(source: string): string[] {
   }
 
   return statements;
-}
-
-function splitCommaSeparated(source: string): string[] {
-  const values: string[] = [];
-  let start = 0;
-  let depth = 0;
-  let inSingleQuote = false;
-
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index]!;
-
-    if (char === "'" && source[index - 1] !== "\\") {
-      inSingleQuote = !inSingleQuote;
-      continue;
-    }
-
-    if (inSingleQuote) {
-      continue;
-    }
-
-    if (char === "(") {
-      depth += 1;
-      continue;
-    }
-
-    if (char === ")") {
-      depth -= 1;
-      continue;
-    }
-
-    if (char === "," && depth === 0) {
-      values.push(source.slice(start, index).trim());
-      start = index + 1;
-    }
-  }
-
-  const tail = source.slice(start).trim();
-
-  if (tail) {
-    values.push(tail);
-  }
-
-  return values;
-}
-
-function splitTableEntries(source: string): string[] {
-  const entries: string[] = [];
-  let start = 0;
-  let depth = 0;
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  let inLineComment = false;
-
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index]!;
-    const nextChar = source[index + 1];
-
-    if (inLineComment) {
-      if (char === "\n") {
-        inLineComment = false;
-      }
-      continue;
-    }
-
-    if (!inDoubleQuote && char === "'" && source[index - 1] !== "\\") {
-      inSingleQuote = !inSingleQuote;
-      continue;
-    }
-
-    if (!inSingleQuote && char === '"') {
-      inDoubleQuote = !inDoubleQuote;
-      continue;
-    }
-
-    if (inSingleQuote || inDoubleQuote) {
-      continue;
-    }
-
-    if (char === "-" && nextChar === "-") {
-      inLineComment = true;
-      index += 1;
-      continue;
-    }
-
-    if (char === "(") {
-      depth += 1;
-      continue;
-    }
-
-    if (char === ")") {
-      depth -= 1;
-      continue;
-    }
-
-    if (char === "," && depth === 0) {
-      entries.push(source.slice(start, index).trim());
-      start = index + 1;
-    }
-  }
-
-  const tail = source.slice(start).trim();
-
-  if (tail) {
-    entries.push(tail);
-  }
-
-  return entries.filter(Boolean);
 }
 
 function tokenizeSqlSegments(source: string): string[] {
