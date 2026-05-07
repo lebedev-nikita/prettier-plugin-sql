@@ -151,5 +151,5 @@ function formatStructuralSql(source: string): string {
 }
 
 function normalizeUnsupported(source: string): string {
-  return `${source.trim().replace(/\s+\n/g, "\n").trimEnd()};`;
+  return `${source.trim().replace(/[ \t]+\n/g, "\n").trimEnd()};`;
 }
