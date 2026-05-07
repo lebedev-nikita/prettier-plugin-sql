@@ -167,19 +167,17 @@ function splitNullability(clause) {
     return { nullability: "", extras: "" };
   }
 
-  const lowerClause = clause.toLowerCase();
+  const tokens = tokenizeSqlSegments(clause);
+  const nullabilityMatch = findNullabilityTokens(tokens);
 
-  if (lowerClause.startsWith("not null")) {
-    return {
-      nullability: "not null",
-      extras: normalizeInlineSql(clause.slice(8))
-    };
-  }
+  if (nullabilityMatch) {
+    const extrasTokens = tokens.filter(
+      (_, index) => index < nullabilityMatch.start || index >= nullabilityMatch.end
+    );
 
-  if (lowerClause.startsWith("null")) {
     return {
-      nullability: "null",
-      extras: normalizeInlineSql(clause.slice(4))
+      nullability: nullabilityMatch.value,
+      extras: normalizeInlineSql(extrasTokens.join(" "))
     };
   }
 
@@ -187,6 +185,32 @@ function splitNullability(clause) {
     nullability: "",
     extras: clause
   };
+}
+
+function findNullabilityTokens(tokens) {
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index].toLowerCase();
+    const nextToken = tokens[index + 1]?.toLowerCase();
+    const previousToken = tokens[index - 1]?.toLowerCase();
+
+    if (token === "not" && nextToken === "null") {
+      return {
+        start: index,
+        end: index + 2,
+        value: "not null"
+      };
+    }
+
+    if (token === "null" && previousToken !== "default") {
+      return {
+        start: index,
+        end: index + 1,
+        value: "null"
+      };
+    }
+  }
+
+  return null;
 }
 
 function splitStatements(source) {
