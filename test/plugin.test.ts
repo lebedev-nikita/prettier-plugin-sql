@@ -161,6 +161,26 @@ describe("prettier-plugin-sql", () => {
 
       expect(output.split(/\n\n+/).length).toBe(2);
     });
+
+    it("formats generated always as identity columns from compact input", async () => {
+      const input = "create table job(job_id integer generated always as identity)";
+      const expected = `${dedent`
+        CREATE TABLE job (
+            job_id integer generated always as identity
+        );
+      `}\n`;
+
+      await expectFormat(input, expected);
+    });
+
+    it("leaves unsupported SQL unchanged apart from trailing semicolon normalization", async () => {
+      const input = "select * from users where id = 1";
+      await expectFormat(input, "select * from users where id = 1;\n");
+    });
+
+    it("throws for invalid PostgreSQL syntax instead of guessing", async () => {
+      await expect(format("create table broken (id integer,,)")).rejects.toThrow();
+    });
   });
 
   describe("indentation", () => {
@@ -342,44 +362,23 @@ describe("prettier-plugin-sql", () => {
 
       await expectFormat(input, expected);
     });
-  });
-
-  it("keeps default clauses attached to the nullability column", async () => {
-    const input = dedent`
-      create table shared_database(
-        login text not null,
-        created_at js_date not null default now(),
-        is_active boolean not null default true
-      )
-    `;
-    const expected = `${dedent`
-      CREATE TABLE shared_database (
-          login      text    not null,
+    it("keeps default clauses attached to the nullability column", async () => {
+      const input = dedent`
+        CREATE TABLE shared_database (
+          login text not null,
           created_at js_date not null default now(),
-          is_active  boolean not null default true
-      );
-    `}\n`;
+          is_active boolean not null default true
+        )
+      `;
+      const expected = `${dedent`
+        CREATE TABLE shared_database (
+            login      text    not null,
+            created_at js_date not null default now(),
+            is_active  boolean not null default true
+        );
+      `}\n`;
 
-    await expectFormat(input, expected);
-  });
-
-  it("formats generated always as identity columns from compact input", async () => {
-    const input = "create table job(job_id integer generated always as identity)";
-    const expected = `${dedent`
-      CREATE TABLE job (
-          job_id integer generated always as identity
-      );
-    `}\n`;
-
-    await expectFormat(input, expected);
-  });
-
-  it("leaves unsupported SQL unchanged apart from trailing semicolon normalization", async () => {
-    const input = "select * from users where id = 1";
-    await expectFormat(input, "select * from users where id = 1;\n");
-  });
-
-  it("throws for invalid PostgreSQL syntax instead of guessing", async () => {
-    await expect(format("create table broken (id integer,,)")).rejects.toThrow();
+      await expectFormat(input, expected);
+    });
   });
 });
