@@ -386,6 +386,7 @@ function splitStatements(source: string): string[] {
   let inSingleQuote = false;
   let inDoubleQuote = false;
   let inLineComment = false;
+  let dollarQuoteTag: string | null = null;
 
   for (let index = 0; index < source.length; index += 1) {
     const char = source[index]!;
@@ -395,6 +396,27 @@ function splitStatements(source: string): string[] {
       if (char === "\n") {
         inLineComment = false;
       }
+      continue;
+    }
+
+    if (!inSingleQuote && !inDoubleQuote && char === "$") {
+      const dollarQuoteMatch = source.slice(index).match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/);
+
+      if (dollarQuoteMatch) {
+        const tag = dollarQuoteMatch[0]!;
+
+        if (dollarQuoteTag === tag) {
+          dollarQuoteTag = null;
+        } else if (dollarQuoteTag === null) {
+          dollarQuoteTag = tag;
+        }
+
+        index += tag.length - 1;
+        continue;
+      }
+    }
+
+    if (dollarQuoteTag) {
       continue;
     }
 

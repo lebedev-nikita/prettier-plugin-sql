@@ -86,6 +86,31 @@ describe("prettier-plugin-sql", () => {
 
       await expectFormat(input, expected);
     });
+
+    it("does not delete function body", async () => {
+      const input = dedent`
+        CREATE OR REPLACE FUNCTION public.get_static_data()
+            RETURNS TABLE(norm_id text, label_data jsonb, iref_after_queries jsonb, iref_spec_queries jsonb, size text, updated_at timestamp without time zone)
+            LANGUAGE 'plpgsql'
+            VOLATILE
+            PARALLEL UNSAFE
+            COST 100    ROWS 1000
+        AS $BODY$
+        DECLARE
+            v_big_threshold INT := 1000;
+            v_middle_threshold INT := 100;
+        BEGIN
+            -- step 1
+            -- step 2
+        END;
+        $BODY$;
+      `;
+      const output = await format(input);
+
+      const wordCount = (str: string) => str.split(/\s+/).length;
+
+      expect(wordCount(output)).toBeGreaterThan(wordCount(input) - 3);
+    });
   });
 
   it("formats create table statements with column alignment and unique constraints", async () => {
