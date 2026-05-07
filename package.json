@@ -1,0 +1,24 @@
+{
+  "name": "@lebedevna/prettier-plugin-sql",
+  "version": "0.1.0",
+  "description": "Prettier plugin for PostgreSQL DDL formatting.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "prettier": "^3.0.0"
+  },
+  "devDependencies": {
+    "dedent-js": "^1.0.1",
+    "prettier": "^3.6.2",
+    "vitest": "^3.2.4"
+  }
+}
