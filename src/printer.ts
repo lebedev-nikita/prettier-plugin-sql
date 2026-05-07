@@ -11,6 +11,31 @@ const STRUCTURAL_KEYWORDS = new Set([
   "references",
   "unique",
 ]);
+const COLUMN_EXTRA_KEYWORDS = new Set([
+  "always",
+  "as",
+  "cascade",
+  "check",
+  "collate",
+  "constraint",
+  "default",
+  "delete",
+  "foreign",
+  "generated",
+  "identity",
+  "key",
+  "no",
+  "not",
+  "null",
+  "on",
+  "primary",
+  "references",
+  "restrict",
+  "set",
+  "stored",
+  "unique",
+  "update",
+]);
 
 type PrintOptions = {};
 
@@ -90,20 +115,30 @@ function formatColumn(
   widths: { nameWidth: number; typeWidth: number; nullWidth: number }
 ): string {
   const base = `${entry.name.padEnd(widths.nameWidth)} ${entry.dataType.padEnd(widths.typeWidth)}`;
+  const extras = entry.extras ? formatColumnExtras(entry.extras) : "";
 
   if (!entry.nullability) {
-    return (entry.extras ? `${base} ${entry.extras}` : base).trimEnd();
+    return (extras ? `${base} ${extras}` : base).trimEnd();
   }
 
   const nullability =
     entry.nullability === "not null"
       ? entry.nullability
       : entry.nullability.padStart(widths.nullWidth);
-  const suffix = entry.extras ? ` ${entry.extras}` : "";
+  const suffix = extras ? ` ${extras}` : "";
   return `${base} ${nullability}${suffix}`.trimEnd();
 }
 
 function formatStructuralSql(source: string): string {
+  const normalized = normalizeKeywordCasing(source, STRUCTURAL_KEYWORDS);
+  return normalized.replace(/([A-Za-z_"][A-Za-z0-9_"]*)\(/g, "$1 (");
+}
+
+function formatColumnExtras(source: string): string {
+  return normalizeKeywordCasing(source, COLUMN_EXTRA_KEYWORDS);
+}
+
+function normalizeKeywordCasing(source: string, keywords: Set<string>): string {
   let result = "";
   let token = "";
   let inSingleQuote = false;
@@ -115,7 +150,7 @@ function formatStructuralSql(source: string): string {
     }
 
     const lowerToken = token.toLowerCase();
-    result += STRUCTURAL_KEYWORDS.has(lowerToken) ? lowerToken.toUpperCase() : token;
+    result += keywords.has(lowerToken) ? lowerToken.toUpperCase() : token;
     token = "";
   };
 
@@ -151,7 +186,7 @@ function formatStructuralSql(source: string): string {
   }
 
   flushToken();
-  return result.replace(/([A-Za-z_"][A-Za-z0-9_"]*)\(/g, "$1 (");
+  return result;
 }
 
 function normalizeUnsupported(source: string): string {

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS ai_request (
     type        ai_request_type not null,
     full_output text                null,
     error       text                null,
-    created_at  js_date         not null default now()
+    created_at  js_date         not null DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS database (
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS database (
     columns    jsonb       not null,
     updated_at js_date     not null,
     "table"    varchar(50) not null,
-    is_active  boolean     not null default true,
+    is_active  boolean     not null DEFAULT true,
     created_at js_date     not null,
     CONSTRAINT database_pkey PRIMARY KEY (database, "table")
 );
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS dict_job_status (
 );
 
 CREATE TABLE IF NOT EXISTS job (
-    job_id            integer   generated always as identity,
+    job_id            integer   GENERATED ALWAYS AS IDENTITY,
     progress          real      not null,
     status_id         integer   not null,
     -- NOTE: нельзя сделать его js_date, потому что это ключ партицирования
@@ -51,22 +51,22 @@ CREATE TABLE IF NOT EXISTS job (
     created_at        timestamp not null,
     -- NOTE: не превращаем в js_date просто за компанию created_at
     modified_at       timestamp not null,
-    is_active         boolean   not null default true,
+    is_active         boolean   not null DEFAULT true,
     sql               text          null,
     error             text          null,
     result            bytea         null,
     login             text      not null,
     parsed_result     jsonb         null,
     result_name       text          null,
-    has_result_report boolean   not null default true,
+    has_result_report boolean   not null DEFAULT true,
     hadoop_id         text          null,
-    is_abridged       boolean   not null default false,
+    is_abridged       boolean   not null DEFAULT false,
     CONSTRAINT status_fk FOREIGN KEY (status_id) REFERENCES dict_job_status (id)
 ) PARTITION BY RANGE (created_at);
 
 CREATE TABLE IF NOT EXISTS shared_database (
     login        text    not null,
     shared_login text    not null,
-    created_at   js_date not null default now(),
+    created_at   js_date not null DEFAULT now(),
     CONSTRAINT shared_database_un UNIQUE (login, shared_login)
 );

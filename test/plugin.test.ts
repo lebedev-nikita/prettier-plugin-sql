@@ -5,6 +5,7 @@ import dedent from "dedent-js";
 import prettier from "prettier";
 import { describe, expect, it } from "vitest";
 import plugin from "../src/index.js";
+import { exec } from "node:child_process";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const fixturePath = path.resolve(rootDir, "../example.sql");
@@ -166,7 +167,7 @@ describe("prettier-plugin-sql", () => {
       const input = "create table job(job_id integer generated always as identity)";
       const expected = `${dedent`
         CREATE TABLE job (
-            job_id integer generated always as identity
+            job_id integer GENERATED ALWAYS AS IDENTITY
         );
       `}\n`;
 
@@ -213,7 +214,7 @@ describe("prettier-plugin-sql", () => {
         CREATE TABLE IF NOT EXISTS shared_database (
               login        text    not null,
               shared_login text    not null,
-              created_at   js_date not null default now(),
+              created_at   js_date not null DEFAULT now(),
               CONSTRAINT shared_database_un UNIQUE (login, shared_login)
             );
       `;
@@ -221,7 +222,7 @@ describe("prettier-plugin-sql", () => {
           CREATE TABLE IF NOT EXISTS shared_database (
               login        text    not null,
               shared_login text    not null,
-              created_at   js_date not null default now(),
+              created_at   js_date not null DEFAULT now(),
               CONSTRAINT shared_database_un UNIQUE (login, shared_login)
           );
       `}\n`;
@@ -295,14 +296,14 @@ describe("prettier-plugin-sql", () => {
     it("puts 'not null' before anything else", async () => {
       const input = dedent`
         CREATE TABLE abc (
-          a int default 10 not null,
-          b int default 10     null
+          a int DEFAULT 10 not null,
+          b int DEFAULT 10     null
         );
       `;
       const expected = `${dedent`
         CREATE TABLE abc (
-            a int not null default 10,
-            b int     null default 10
+            a int not null DEFAULT 10,
+            b int     null DEFAULT 10
         );
       `}\n`;
       await expectFormat(input, expected);
@@ -318,7 +319,7 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE job (
-            job_id     integer   generated always as identity,
+            job_id     integer   GENERATED ALWAYS AS IDENTITY,
             -- important note
             created_at timestamp not null
         );
@@ -362,19 +363,37 @@ describe("prettier-plugin-sql", () => {
 
       await expectFormat(input, expected);
     });
-    it("keeps default clauses attached to the nullability column", async () => {
+
+    it("keeps DEFAULT clauses attached to the nullability column", async () => {
       const input = dedent`
         CREATE TABLE shared_database (
           login text not null,
-          created_at js_date not null default now(),
-          is_active boolean not null default true
+          created_at js_date not null DEFAULT now(),
+          is_active boolean not null DEFAULT true
         )
       `;
       const expected = `${dedent`
         CREATE TABLE shared_database (
             login      text    not null,
-            created_at js_date not null default now(),
-            is_active  boolean not null default true
+            created_at js_date not null DEFAULT now(),
+            is_active  boolean not null DEFAULT true
+        );
+      `}\n`;
+
+      await expectFormat(input, expected);
+    });
+
+    it("changes uppercases 'default'", async () => {
+      const input = dedent`
+        CREATE TABLE IF NOT EXISTS shared_database (
+            created_at   js_date not null default now(),
+            CONSTRAINT shared_database_un UNIQUE (login, shared_login)
+        );
+      `;
+      const expected = `${dedent`
+        CREATE TABLE IF NOT EXISTS shared_database (
+            created_at js_date not null DEFAULT now(),
+            CONSTRAINT shared_database_un UNIQUE (login, shared_login)
         );
       `}\n`;
 
