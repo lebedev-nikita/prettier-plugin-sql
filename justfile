@@ -1,7 +1,7 @@
 install:
   npm install
 
-test: install
+test:
   npm run test
 
 publish: install test

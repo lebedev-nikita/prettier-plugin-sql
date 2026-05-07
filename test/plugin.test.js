@@ -17,6 +17,10 @@ async function format(source) {
   });
 }
 
+async function expectFormat(input, expected) {
+  await expect(format(input)).resolves.toBe(expected);
+}
+
 describe("prettier-plugin-sql", () => {
   it("formats the canonical example fixture exactly", async () => {
     await expect(format(exampleSql)).resolves.toBe(exampleSql);
@@ -29,26 +33,52 @@ describe("prettier-plugin-sql", () => {
     expect(twice).toBe(once);
   });
 
-  it("formats supported PostgreSQL DDL statements", async () => {
-    const input = dedent`
-      create domain js_date as timestamptz(3);
-      create type ai_request_type as enum('text','code');
-      create table if not exists database_x_user(
-        login text not null,
-        database text not null,
-        is_personal boolean not null,
-        constraint database_x_user_un unique(login, database)
-      );
-    `;
+  it("normalizes create domain statements with irregular casing and spacing", async () => {
+    const input = "cReAtE   domain   js_date    as   timestamptz(3)";
+    await expectFormat(input, "CREATE DOMAIN js_date AS timestamptz(3);\n");
+  });
 
+  it("normalizes create type enum statements from compact one-line input", async () => {
+    const input = "create type ai_request_type as enum('text','code')";
     const expected = `${dedent`
-      CREATE DOMAIN js_date AS timestamptz(3);
-
       CREATE TYPE ai_request_type AS ENUM (
         'text',
         'code'
       );
+    `}\n`;
 
+    await expectFormat(input, expected);
+  });
+
+  it("normalizes create type enum statements with awkward line breaks", async () => {
+    const input = dedent`
+      create type ai_request_type
+      as enum(
+      'text'
+      ,
+        'code'
+      )
+    `;
+    const expected = `${dedent`
+      CREATE TYPE ai_request_type AS ENUM (
+        'text',
+        'code'
+      );
+    `}\n`;
+
+    await expectFormat(input, expected);
+  });
+
+  it("formats create table statements with column alignment and unique constraints", async () => {
+    const input = dedent`
+      create table if not exists database_x_user(
+      login text not null,
+        database text not null,
+      is_personal boolean not null,
+      constraint database_x_user_un unique(login, database)
+      )
+    `;
+    const expected = `${dedent`
       CREATE TABLE IF NOT EXISTS database_x_user (
         login       text    not null,
         database    text    not null,
@@ -57,33 +87,113 @@ describe("prettier-plugin-sql", () => {
       );
     `}\n`;
 
-    await expect(format(input)).resolves.toBe(expected);
+    await expectFormat(input, expected);
   });
 
-  it("preserves comments and partition clauses in supported tables", async () => {
+  it("preserves inline comments above columns", async () => {
     const input = dedent`
       create table job(
         job_id integer generated always as identity,
         -- important note
-        created_at timestamp not null,
-        constraint status_fk foreign key(status_id) references dict_job_status(id)
-      ) partition by range(created_at);
+        created_at timestamp not null
+      )
     `;
-
     const expected = `${dedent`
       CREATE TABLE job (
         job_id     integer   generated always as identity,
         -- important note
-        created_at timestamp not null,
+        created_at timestamp not null
+      );
+    `}\n`;
+
+    await expectFormat(input, expected);
+  });
+
+  it("normalizes partition clauses and foreign key keywords", async () => {
+    const input = dedent`
+      create table job(
+        status_id integer not null,
+        constraint status_fk foreign key(status_id) references dict_job_status(id)
+      ) partition by range(created_at)
+    `;
+    const expected = `${dedent`
+      CREATE TABLE job (
+        status_id integer not null,
         CONSTRAINT status_fk FOREIGN KEY (status_id) REFERENCES dict_job_status (id)
       ) PARTITION BY RANGE (created_at);
     `}\n`;
 
-    await expect(format(input)).resolves.toBe(expected);
+    await expectFormat(input, expected);
+  });
+
+  it("preserves quoted identifiers in supported tables", async () => {
+    const input = dedent`
+      create table database(
+        "table" varchar(50) not null,
+        database varchar(50) not null
+      )
+    `;
+    const expected = `${dedent`
+      CREATE TABLE database (
+        "table"  varchar(50) not null,
+        database varchar(50) not null
+      );
+    `}\n`;
+
+    await expectFormat(input, expected);
+  });
+
+  it("aligns nullable columns without extra clauses", async () => {
+    const input = dedent`
+      create table ai_request(
+        login text not null,
+        full_output text null,
+        error text null
+      )
+    `;
+    const expected = `${dedent`
+      CREATE TABLE ai_request (
+        login       text not null,
+        full_output text     null,
+        error       text     null
+      );
+    `}\n`;
+
+    await expectFormat(input, expected);
+  });
+
+  it("keeps default clauses attached to the nullability column", async () => {
+    const input = dedent`
+      create table shared_database(
+        login text not null,
+        created_at js_date not null default now(),
+        is_active boolean not null default true
+      )
+    `;
+    const expected = `${dedent`
+      CREATE TABLE shared_database (
+        login      text    not null,
+        created_at js_date not null default now(),
+        is_active  boolean not null default true
+      );
+    `}\n`;
+
+    await expectFormat(input, expected);
+  });
+
+  it("formats generated always as identity columns from compact input", async () => {
+    const input = "create table job(job_id integer generated always as identity)";
+    const expected = `${dedent`
+      CREATE TABLE job (
+        job_id integer generated always as identity
+      );
+    `}\n`;
+
+    await expectFormat(input, expected);
   });
 
   it("leaves unsupported SQL unchanged apart from trailing semicolon normalization", async () => {
     const input = "select * from users where id = 1";
-    await expect(format(input)).resolves.toBe("select * from users where id = 1;\n");
+    await expectFormat(input, "select * from users where id = 1;\n");
   });
 });
