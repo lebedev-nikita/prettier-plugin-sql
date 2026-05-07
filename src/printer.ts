@@ -17,12 +17,19 @@ const STRUCTURAL_KEYWORDS = new Set([
   "unique",
 ]);
 
-export function printSql(ast: SqlRootNode): string {
-  const body = ast.statements.map(printStatement).join("\n\n");
+type PrintOptions = {
+  tabWidth?: number;
+};
+
+export function printSql(ast: SqlRootNode, options: PrintOptions = {}): string {
+  const indentation = " ".repeat(options.tabWidth ?? 2);
+  const body = ast.statements
+    .map((statement) => printStatement(statement, indentation))
+    .join("\n\n");
   return body ? `${body}\n` : "";
 }
 
-function printStatement(statement: SqlStatement): string {
+function printStatement(statement: SqlStatement, indentation: string): string {
   switch (statement.type) {
     case "create_domain":
       return `CREATE DOMAIN ${statement.name} AS ${statement.dataType};`;
@@ -30,18 +37,18 @@ function printStatement(statement: SqlStatement): string {
       return [
         `CREATE TYPE ${statement.name} AS ENUM (`,
         ...statement.items.map((item, index) =>
-          `  ${item}${index === statement.items.length - 1 ? "" : ","}`,
+          `${indentation}${item}${index === statement.items.length - 1 ? "" : ","}`,
         ),
         ");",
       ].join("\n");
     case "create_table":
-      return printCreateTable(statement);
+      return printCreateTable(statement, indentation);
     case "unsupported":
       return normalizeUnsupported(statement.raw);
   }
 }
 
-function printCreateTable(statement: CreateTableStatement): string {
+function printCreateTable(statement: CreateTableStatement, indentation: string): string {
   const columns = statement.entries.filter((entry) => entry.type === "column");
   const nameWidth = Math.max(...columns.map((entry) => entry.name.length), 0);
   const typeWidth = Math.max(...columns.map((entry) => entry.dataType.length), 0);
@@ -69,7 +76,7 @@ function printCreateTable(statement: CreateTableStatement): string {
   });
 
   const lines = [`CREATE TABLE ${statement.ifNotExists ? "IF NOT EXISTS " : ""}${statement.name} (`];
-  lines.push(...entryLines.map((line) => `  ${line}`));
+  lines.push(...entryLines.map((line) => `${indentation}${line}`));
 
   let closing = ")";
 

@@ -13,8 +13,12 @@ type SqlPrinterPath = {
   getValue(): SqlAstNode;
 };
 
+type SqlPrinterOptions = {
+  tabWidth?: number;
+};
+
 type SqlPrinter = {
-  print(path: SqlPrinterPath): string;
+  print(path: SqlPrinterPath, options?: SqlPrinterOptions): string;
 };
 
 type SqlPlugin = {
@@ -58,8 +62,8 @@ const parsers: SqlPlugin["parsers"] = {
 
 const printers: SqlPlugin["printers"] = {
   sql: {
-    print(path) {
-      return printSql(path.getValue() as ReturnType<typeof parse>);
+    print(path, options) {
+      return printSql(path.getValue() as ReturnType<typeof parse>, options);
     },
   },
 };

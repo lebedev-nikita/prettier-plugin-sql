@@ -14,6 +14,7 @@ async function format(source: string): Promise<string> {
   return prettier.format(source, {
     parser: "sql",
     plugins: [plugin],
+    tabWidth: 4,
   });
 }
 
@@ -36,8 +37,8 @@ describe("prettier-plugin-sql", () => {
         CREATE DOMAIN js_date AS timestamptz(3);
 
         CREATE TYPE ai_request_type AS ENUM (
-          'text',
-          'code'
+            'text',
+            'code'
         );
       `}\n`;
 
@@ -60,8 +61,8 @@ describe("prettier-plugin-sql", () => {
       const input = "create type ai_request_type as enum('text','code')";
       const expected = `${dedent`
         CREATE TYPE ai_request_type AS ENUM (
-          'text',
-          'code'
+            'text',
+            'code'
         );
       `}\n`;
 
@@ -79,8 +80,8 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TYPE ai_request_type AS ENUM (
-          'text',
-          'code'
+            'text',
+            'code'
         );
       `}\n`;
 
@@ -98,10 +99,10 @@ describe("prettier-plugin-sql", () => {
     `;
       const expected = `${dedent`
       CREATE TABLE IF NOT EXISTS database_x_user (
-        login       text    not null,
-        database    text    not null,
-        is_personal boolean not null,
-        CONSTRAINT database_x_user_un UNIQUE (login, database)
+          login       text    not null,
+          database    text    not null,
+          is_personal boolean not null,
+          CONSTRAINT database_x_user_un UNIQUE (login, database)
       );
     `}\n`;
 
@@ -174,12 +175,12 @@ describe("prettier-plugin-sql", () => {
             );
       `;
       const expected = `${dedent`
-            CREATE TABLE IF NOT EXISTS shared_database (
+          CREATE TABLE IF NOT EXISTS shared_database (
               login        text    not null,
               shared_login text    not null,
               created_at   js_date not null default now(),
               CONSTRAINT shared_database_un UNIQUE (login, shared_login)
-            );
+          );
       `}\n`;
       await expectFormat(input, expected);
     });
@@ -194,9 +195,9 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE ai_request (
-          login       text not null,
-          full_output text     null,
-          error       text     null
+            login       text not null,
+            full_output text     null,
+            error       text     null
         );
       `}\n`;
 
@@ -215,10 +216,10 @@ describe("prettier-plugin-sql", () => {
 
       const expected = `${dedent`
         CREATE TABLE IF NOT EXISTS database_x_user (
-          login       text    not null,
-          database    text    not null,
-          is_personal boolean not null,
-          CONSTRAINT database_x_user_un UNIQUE (login, database)
+            login       text    not null,
+            database    text    not null,
+            is_personal boolean not null,
+            CONSTRAINT database_x_user_un UNIQUE (login, database)
         );
       `}\n`;
       await expectFormat(input, expected);
@@ -236,11 +237,11 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE IF NOT EXISTS actual_assignee (
-          norm_id bigint      null,
-          value   integer     null,
-          at      js_date not null,
-          "by"    integer     null,
-          CONSTRAINT actual_assignee_pkey PRIMARY KEY (norm_id)
+            norm_id bigint      null,
+            value   integer     null,
+            at      js_date not null,
+            "by"    integer     null,
+            CONSTRAINT actual_assignee_pkey PRIMARY KEY (norm_id)
         );
       `}\n`;
       await expectFormat(input, expected);
@@ -257,8 +258,8 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE abc (
-          a int not null default 10,
-          b int     null default 10
+            a int not null default 10,
+            b int     null default 10
         );
       `}\n`;
       await expectFormat(input, expected);
@@ -274,9 +275,9 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE job (
-          job_id     integer   generated always as identity,
-          -- important note
-          created_at timestamp not null
+            job_id     integer   generated always as identity,
+            -- important note
+            created_at timestamp not null
         );
       `}\n`;
 
@@ -292,8 +293,8 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE database (
-          "table"  varchar(50) not null,
-          database varchar(50) not null
+            "table"  varchar(50) not null,
+            database varchar(50) not null
         );
       `}\n`;
 
@@ -311,8 +312,8 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE job (
-          status_id integer not null,
-          CONSTRAINT status_fk FOREIGN KEY (status_id) REFERENCES dict_job_status (id)
+            status_id integer not null,
+            CONSTRAINT status_fk FOREIGN KEY (status_id) REFERENCES dict_job_status (id)
         ) PARTITION BY RANGE (created_at);
       `}\n`;
 
@@ -330,9 +331,9 @@ describe("prettier-plugin-sql", () => {
     `;
     const expected = `${dedent`
       CREATE TABLE shared_database (
-        login      text    not null,
-        created_at js_date not null default now(),
-        is_active  boolean not null default true
+          login      text    not null,
+          created_at js_date not null default now(),
+          is_active  boolean not null default true
       );
     `}\n`;
 
@@ -343,7 +344,7 @@ describe("prettier-plugin-sql", () => {
     const input = "create table job(job_id integer generated always as identity)";
     const expected = `${dedent`
       CREATE TABLE job (
-        job_id integer generated always as identity
+          job_id integer generated always as identity
       );
     `}\n`;
 
