@@ -99,9 +99,9 @@ describe("prettier-plugin-sql", () => {
     `;
       const expected = `${dedent`
       CREATE TABLE IF NOT EXISTS database_x_user (
-          login       text    not null,
-          database    text    not null,
-          is_personal boolean not null,
+          login       text    NOT NULL,
+          database    text    NOT NULL,
+          is_personal boolean NOT NULL,
           CONSTRAINT database_x_user_un UNIQUE (login, database)
       );
     `}\n`;
@@ -198,12 +198,12 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE IF NOT EXISTS history_iref_spec_cluster_mapping (
-            norm_id  bigint  null,
-            block_id integer null,
-            query    text    null,
-            id       integer null,
-            at       js_date null,
-            "by"     integer null
+            norm_id  bigint  NULL,
+            block_id integer NULL,
+            query    text    NULL,
+            id       integer NULL,
+            at       js_date NULL,
+            "by"     integer NULL
         );
       `}\n`;
       await expectFormat(input, expected);
@@ -220,9 +220,9 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
           CREATE TABLE IF NOT EXISTS shared_database (
-              login        text    not null,
-              shared_login text    not null,
-              created_at   js_date not null DEFAULT now(),
+              login        text    NOT NULL,
+              shared_login text    NOT NULL,
+              created_at   js_date NOT NULL DEFAULT now(),
               CONSTRAINT shared_database_un UNIQUE (login, shared_login)
           );
       `}\n`;
@@ -239,9 +239,9 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE ai_request (
-            login       text not null,
-            full_output text     null,
-            error       text     null
+            login       text NOT NULL,
+            full_output text     NULL,
+            error       text     NULL
         );
       `}\n`;
 
@@ -260,9 +260,9 @@ describe("prettier-plugin-sql", () => {
 
       const expected = `${dedent`
         CREATE TABLE IF NOT EXISTS database_x_user (
-            login       text    not null,
-            database    text    not null,
-            is_personal boolean not null,
+            login       text    NOT NULL,
+            database    text    NOT NULL,
+            is_personal boolean NOT NULL,
             CONSTRAINT database_x_user_un UNIQUE (login, database)
         );
       `}\n`;
@@ -281,10 +281,10 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE IF NOT EXISTS actual_assignee (
-            norm_id bigint      null,
-            value   integer     null,
-            at      js_date not null,
-            "by"    integer     null,
+            norm_id bigint      NULL,
+            value   integer     NULL,
+            at      js_date NOT NULL,
+            "by"    integer     NULL,
             CONSTRAINT actual_assignee_pkey PRIMARY KEY (norm_id)
         );
       `}\n`;
@@ -302,8 +302,8 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE abc (
-            a int not null DEFAULT 10,
-            b int     null DEFAULT 10
+            a int NOT NULL DEFAULT 10,
+            b int     NULL DEFAULT 10
         );
       `}\n`;
       await expectFormat(input, expected);
@@ -321,7 +321,7 @@ describe("prettier-plugin-sql", () => {
         CREATE TABLE job (
             job_id     integer   GENERATED ALWAYS AS IDENTITY,
             -- important note
-            created_at timestamp not null
+            created_at timestamp NOT NULL
         );
       `}\n`;
 
@@ -337,8 +337,8 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE database (
-            "table"  varchar(50) not null,
-            database varchar(50) not null
+            "table"  varchar(50) NOT NULL,
+            database varchar(50) NOT NULL
         );
       `}\n`;
 
@@ -356,7 +356,7 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE job (
-            status_id integer not null,
+            status_id integer NOT NULL,
             CONSTRAINT status_fk FOREIGN KEY (status_id) REFERENCES dict_job_status (id)
         ) PARTITION BY RANGE (created_at);
       `}\n`;
@@ -374,9 +374,9 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE shared_database (
-            login      text    not null,
-            created_at js_date not null DEFAULT now(),
-            is_active  boolean not null DEFAULT true
+            login      text    NOT NULL,
+            created_at js_date NOT NULL DEFAULT now(),
+            is_active  boolean NOT NULL DEFAULT true
         );
       `}\n`;
 
@@ -392,7 +392,7 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE IF NOT EXISTS shared_database (
-            created_at js_date not null DEFAULT now(),
+            created_at js_date NOT NULL DEFAULT now(),
             CONSTRAINT shared_database_un UNIQUE (login, shared_login)
         );
       `}\n`;

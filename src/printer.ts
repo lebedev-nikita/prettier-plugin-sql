@@ -121,10 +121,11 @@ function formatColumn(
     return (extras ? `${base} ${extras}` : base).trimEnd();
   }
 
+  const renderedNullability = entry.nullability.toUpperCase();
   const nullability =
     entry.nullability === "not null"
-      ? entry.nullability
-      : entry.nullability.padStart(widths.nullWidth);
+      ? renderedNullability
+      : renderedNullability.padStart(widths.nullWidth);
   const suffix = extras ? ` ${extras}` : "";
   return `${base} ${nullability}${suffix}`.trimEnd();
 }
