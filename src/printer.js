@@ -35,8 +35,10 @@ function printStatement(statement) {
 }
 
 function printCreateTable(statement) {
-  if (looksCanonical(statement.raw)) {
-    return `${statement.raw};`;
+  const preserved = preserveCanonicalTable(statement);
+
+  if (preserved) {
+    return preserved;
   }
 
   const columns = statement.entries.filter((entry) => entry.type === "column");
@@ -147,6 +149,25 @@ function normalizeUnsupported(source) {
   return source.trim().replace(/\s+\n/g, "\n").trimEnd() + ";";
 }
 
-function looksCanonical(source) {
-  return source.startsWith("CREATE TABLE ") && source.includes("\n  ");
+function preserveCanonicalTable(statement) {
+  const lines = statement.raw.split("\n");
+
+  if (lines.length < 2) {
+    return null;
+  }
+
+  const header = `CREATE TABLE ${statement.ifNotExists ? "IF NOT EXISTS " : ""}${statement.name} (`;
+  const closing = statement.suffix ? `) ${formatStructuralSql(statement.suffix)}` : ")";
+
+  if (lines[0].trim() !== header || lines.at(-1)?.trim() !== closing) {
+    return null;
+  }
+
+  const body = lines.slice(1, -1).map((line) => line.trimStart());
+
+  if (body.some((line) => line.length === 0)) {
+    return null;
+  }
+
+  return [header, ...body.map((line) => `  ${line}`), `${closing};`].join("\n");
 }

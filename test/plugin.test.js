@@ -13,7 +13,7 @@ const exampleSql = readFileSync(fixturePath, "utf8");
 async function format(source) {
   return prettier.format(source, {
     parser: "sql",
-    plugins: [plugin]
+    plugins: [plugin],
   });
 }
 
@@ -87,6 +87,26 @@ describe("prettier-plugin-sql", () => {
       );
     `}\n`;
 
+    await expectFormat(input, expected);
+  });
+
+  it("fixes indentation not only at the first line", async () => {
+    const input = dedent`
+      CREATE TABLE IF NOT EXISTS shared_database (
+            login        text     not null,
+            shared_login text     not null,
+            created_at   js_date  not null default now(),
+            CONSTRAINT shared_database_un UNIQUE (login, shared_login)
+          );
+    `;
+    const expected = `${dedent`
+          CREATE TABLE IF NOT EXISTS shared_database (
+            login        text     not null,
+            shared_login text     not null,
+            created_at   js_date  not null default now(),
+            CONSTRAINT shared_database_un UNIQUE (login, shared_login)
+          );
+    `}\n`;
     await expectFormat(input, expected);
   });
 
