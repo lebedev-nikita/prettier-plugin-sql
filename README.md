@@ -1,14 +1,16 @@
 # @lebedevna/prettier-plugin-sql
 
-Prettier plugin for formatting PostgreSQL DDL.
+Prettier plugin for formatting a focused subset of PostgreSQL DDL.
 
-This package currently targets the house style shown in [`example.sql`](./example.sql). It is focused on a small supported subset of PostgreSQL schema statements rather than general SQL formatting.
+The plugin is intentionally narrow. It formats supported statements into the house style shown in [`example.sql`](./example.sql) and leaves everything else structurally unchanged.
 
 ## Install
 
 ```bash
 npm install --save-dev prettier @lebedevna/prettier-plugin-sql
 ```
+
+Peer requirement: `prettier@^3`.
 
 ## Usage
 
@@ -19,11 +21,11 @@ npm install --save-dev prettier @lebedevna/prettier-plugin-sql
 import sqlPlugin from "@lebedevna/prettier-plugin-sql";
 
 export default {
-  plugins: [sqlPlugin]
+  plugins: [sqlPlugin],
 };
 ```
 
-If you are using JSON config, point Prettier at the package name:
+If you use JSON config, reference the package name:
 
 ```json
 {
@@ -31,7 +33,7 @@ If you are using JSON config, point Prettier at the package name:
 }
 ```
 
-### Format a file
+### Format SQL files
 
 ```bash
 npx prettier --write schema.sql
@@ -44,58 +46,67 @@ The plugin registers the `sql` parser for `.sql` files.
 Input:
 
 ```sql
-create type ai_request_type as enum('text','code');
-create table if not exists database_x_user(
-  login text not null,
-  database text not null,
-  is_personal boolean not null,
-  constraint database_x_user_un unique(login, database)
-);
+create table job(
+  job_id integer generated always as identity,
+  created_at timestamp not null,
+  is_active boolean not null default true,
+  constraint status_fk foreign key(status_id) references dict_job_status(id)
+) partition by range(created_at)
 ```
 
 Output:
 
 ```sql
-CREATE TYPE ai_request_type AS ENUM (
-  'text',
-  'code'
-);
-
-CREATE TABLE IF NOT EXISTS database_x_user (
-  login       text    not null,
-  database    text    not null,
-  is_personal boolean not null,
-  CONSTRAINT database_x_user_un UNIQUE (login, database)
-);
+CREATE TABLE job (
+    job_id     integer   GENERATED ALWAYS AS IDENTITY,
+    created_at timestamp NOT NULL,
+    is_active  boolean   NOT NULL DEFAULT true,
+    CONSTRAINT status_fk FOREIGN KEY (status_id) REFERENCES dict_job_status (id)
+) PARTITION BY RANGE (created_at);
 ```
 
-## Supported Syntax
+## Supported Statements
 
 - `CREATE DOMAIN ... AS ...`
 - `CREATE TYPE ... AS ENUM (...)`
-- `CREATE TABLE ...` with:
-  - columns
-  - `CONSTRAINT` entries
-  - `PRIMARY KEY`, `UNIQUE`, `FOREIGN KEY`, `REFERENCES`
-  - inline `--` comments
-  - `PARTITION BY RANGE (...)`
+- `CREATE TABLE ...`
 
-## Current Behavior
+## Supported Table Formatting
 
-- Formats supported PostgreSQL DDL statements into the canonical style used in `example.sql`
-- Preserves already-canonical multi-line table formatting byte-for-byte
-- Leaves unsupported SQL unchanged, except it normalizes a missing trailing semicolon
+For supported `CREATE TABLE` statements, the formatter currently handles:
+
+- column definitions
+- quoted identifiers
+- table constraints such as `PRIMARY KEY`, `UNIQUE`, and `FOREIGN KEY ... REFERENCES ...`
+- `GENERATED ALWAYS AS IDENTITY`
+- `DEFAULT ...`
+- explicit `NULL` and `NOT NULL`
+- inline `--` comments placed above columns or constraints
+- `PARTITION BY RANGE (...)`
+
+## Behavior
+
+- Uppercases supported structural keywords while preserving identifier case and string literals
+- Aligns column names, data types, and nullability within a table
+- Reorders nullability ahead of trailing clauses such as `DEFAULT`
+- Preserves unsupported statements instead of trying to restyle them
+- Normalizes the final output to include a trailing semicolon and newline
+- Throws on invalid PostgreSQL syntax instead of guessing
+
+## Unsupported SQL
+
+Unsupported SQL is passed through with minimal normalization. For example, a `SELECT` statement is kept as-is apart from trailing semicolon cleanup.
+
+This makes the plugin safe to use on mixed files only if you are comfortable with supported PostgreSQL DDL being reformatted while unsupported SQL mostly stays in its original layout.
 
 ## Limitations
 
-- This is not a general-purpose SQL formatter yet
-- It is designed for PostgreSQL DDL, not multi-dialect SQL
-- Unsupported statements such as `SELECT` are not reformatted into a new style
-- There are no custom plugin options in `v0.1.0`
+- This is not a general-purpose SQL formatter
+- The scope is PostgreSQL-oriented DDL, not multi-dialect SQL
+- `CREATE TABLE` support is limited to tables the parser can map into the plugin's supported entry model
+- There are currently no plugin-specific options
 
 ## Development
-
-Run tests with:
 
 ```bash
 npm test
