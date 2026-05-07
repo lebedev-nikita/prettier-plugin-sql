@@ -169,6 +169,28 @@ describe("prettier-plugin-sql", () => {
       `}\n`;
       await expectFormat(input, expected);
     });
+
+    it("does not put spaces before commas", async () => {
+      const input = dedent`
+        CREATE TABLE IF NOT EXISTS actual_assignee (
+            norm_id bigint,
+            value integer,
+            at js_date NOT NULL,
+            "by" integer,
+            CONSTRAINT actual_assignee_pkey PRIMARY KEY (norm_id)
+        );
+      `;
+      const expected = `${dedent`
+        CREATE TABLE IF NOT EXISTS actual_assignee (
+          norm_id bigint,
+          value   integer,
+          at      js_date not null,
+          "by"    integer,
+          CONSTRAINT actual_assignee_pkey PRIMARY KEY (norm_id)
+        );
+      `}\n`;
+      await expectFormat(input, expected);
+    });
   });
 
   describe("syntax", () => {

@@ -88,7 +88,7 @@ function formatColumn(
   const base = `${entry.name.padEnd(widths.nameWidth)} ${entry.dataType.padEnd(widths.typeWidth)}`;
 
   if (!entry.nullability) {
-    return entry.extras ? `${base} ${entry.extras}` : base;
+    return (entry.extras ? `${base} ${entry.extras}` : base).trimEnd();
   }
 
   const nullability =
@@ -96,7 +96,7 @@ function formatColumn(
       ? entry.nullability
       : entry.nullability.padStart(widths.nullWidth);
   const suffix = entry.extras ? ` ${entry.extras}` : "";
-  return `${base} ${nullability}${suffix}`;
+  return `${base} ${nullability}${suffix}`.trimEnd();
 }
 
 function formatStructuralSql(source: string): string {
