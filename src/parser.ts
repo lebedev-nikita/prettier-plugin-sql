@@ -251,13 +251,14 @@ function parseTableEntry(entry: string): TableEntry | null {
   const dataType = normalizeInlineSql(tokens.slice(0, clauseIndex).join(" "));
   const clause = normalizeInlineSql(tokens.slice(clauseIndex).join(" "));
   const { nullability, extras } = splitNullability(clause);
+  const normalizedNullability = clause ? nullability : "null";
 
   return {
     type: "column",
     comments,
     name: firstPart,
     dataType,
-    nullability,
+    nullability: normalizedNullability,
     extras,
     raw: entry,
   };

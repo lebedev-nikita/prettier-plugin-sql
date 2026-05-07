@@ -170,7 +170,7 @@ describe("prettier-plugin-sql", () => {
       await expectFormat(input, expected);
     });
 
-    it("does not put spaces before commas", async () => {
+    it("always puts 'null' or 'not null'", async () => {
       const input = dedent`
         CREATE TABLE IF NOT EXISTS actual_assignee (
             norm_id bigint,
@@ -182,10 +182,10 @@ describe("prettier-plugin-sql", () => {
       `;
       const expected = `${dedent`
         CREATE TABLE IF NOT EXISTS actual_assignee (
-          norm_id bigint,
-          value   integer,
+          norm_id bigint      null,
+          value   integer     null,
           at      js_date not null,
-          "by"    integer,
+          "by"    integer     null,
           CONSTRAINT actual_assignee_pkey PRIMARY KEY (norm_id)
         );
       `}\n`;
