@@ -64,12 +64,6 @@ function printCreateTable(statement) {
     entryLines.push(`${content}${isLast ? "" : ","}`);
   });
 
-  const preserved = preserveCanonicalTable(statement, entryLines);
-
-  if (preserved) {
-    return preserved;
-  }
-
   const lines = [`CREATE TABLE ${statement.ifNotExists ? "IF NOT EXISTS " : ""}${statement.name} (`];
   lines.push(...entryLines.map((line) => `  ${line}`));
 
@@ -90,7 +84,10 @@ function formatColumn(entry, widths) {
     return entry.extras ? `${base} ${entry.extras}` : base;
   }
 
-  const nullability = entry.nullability.padStart(widths.nullWidth);
+  const nullability =
+    entry.nullability === "not null"
+      ? entry.nullability
+      : entry.nullability.padStart(widths.nullWidth);
   const suffix = entry.extras ? ` ${entry.extras}` : "";
   return `${base} ${nullability}${suffix}`;
 }
@@ -148,49 +145,4 @@ function formatStructuralSql(source) {
 
 function normalizeUnsupported(source) {
   return source.trim().replace(/\s+\n/g, "\n").trimEnd() + ";";
-}
-
-function preserveCanonicalTable(statement, entryLines) {
-  const lines = statement.raw.split("\n");
-
-  if (lines.length < 2) {
-    return null;
-  }
-
-  const header = `CREATE TABLE ${statement.ifNotExists ? "IF NOT EXISTS " : ""}${statement.name} (`;
-  const closing = statement.suffix ? `) ${formatStructuralSql(statement.suffix)}` : ")";
-
-  if (lines[0].trim() !== header || lines.at(-1)?.trim() !== closing) {
-    return null;
-  }
-
-  const body = lines.slice(1, -1).map((line) => line.trimStart());
-
-  if (body.some((line) => line.length === 0) || body.length !== entryLines.length) {
-    return null;
-  }
-
-  if (body.some((line, index) => !hasEquivalentLineContent(line, entryLines[index]))) {
-    return null;
-  }
-
-  return [header, ...body.map((line) => `  ${line}`), `${closing};`].join("\n");
-}
-
-function hasEquivalentLineContent(left, right) {
-  const leftHasComma = left.endsWith(",");
-  const rightHasComma = right.endsWith(",");
-
-  if (leftHasComma !== rightHasComma) {
-    return false;
-  }
-
-  const leftContent = leftHasComma ? left.slice(0, -1) : left;
-  const rightContent = rightHasComma ? right.slice(0, -1) : right;
-
-  return normalizeInlineSql(leftContent) === normalizeInlineSql(rightContent);
-}
-
-function normalizeInlineSql(source) {
-  return source.replace(/\s+/g, " ").trim();
 }

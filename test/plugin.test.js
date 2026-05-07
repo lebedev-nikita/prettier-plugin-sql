@@ -93,7 +93,7 @@ describe("prettier-plugin-sql", () => {
   });
 
   describe("indentation", () => {
-    it("is fixed not only at the first line", async () => {
+    it("fixes indentation not only at the first line", async () => {
       const input = dedent`
         CREATE TABLE IF NOT EXISTS shared_database (
               login        text    not null,
@@ -129,6 +129,27 @@ describe("prettier-plugin-sql", () => {
         );
       `}\n`;
 
+      await expectFormat(input, expected);
+    });
+
+    it("changes indentation before not null", async () => {
+      const input = dedent`
+        CREATE TABLE IF NOT EXISTS database_x_user (
+          login       text    not null,
+          database    text    not null,
+          is_personal boolean     not null,
+          CONSTRAINT database_x_user_un UNIQUE (login, database)
+        );
+      `;
+
+      const expected = `${dedent`
+        CREATE TABLE IF NOT EXISTS database_x_user (
+          login       text    not null,
+          database    text    not null,
+          is_personal boolean not null,
+          CONSTRAINT database_x_user_un UNIQUE (login, database)
+        );
+      `}\n`;
       await expectFormat(input, expected);
     });
   });

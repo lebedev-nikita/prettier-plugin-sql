@@ -16,13 +16,13 @@ CREATE TABLE IF NOT EXISTS ai_request (
 );
 
 CREATE TABLE IF NOT EXISTS database (
-  database   varchar(50)  not null,
-  comment    text             null,
-  columns    jsonb        not null,
-  updated_at js_date      not null,
-  "table"    varchar(50)  not null,
-  is_active  boolean      not null default true,
-  created_at js_date      not null,
+  database   varchar(50) not null,
+  comment    text            null,
+  columns    jsonb       not null,
+  updated_at js_date     not null,
+  "table"    varchar(50) not null,
+  is_active  boolean     not null default true,
+  created_at js_date     not null,
   CONSTRAINT database_pkey PRIMARY KEY (database, "table")
 );
 
@@ -65,8 +65,8 @@ CREATE TABLE IF NOT EXISTS job (
 ) PARTITION BY RANGE (created_at);
 
 CREATE TABLE IF NOT EXISTS shared_database (
-  login        text     not null,
-  shared_login text     not null,
-  created_at   js_date  not null default now(),
+  login        text    not null,
+  shared_login text    not null,
+  created_at   js_date not null default now(),
   CONSTRAINT shared_database_un UNIQUE (login, shared_login)
 );
