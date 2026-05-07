@@ -3,22 +3,31 @@
   "version": "0.1.4",
   "description": "Prettier plugin for PostgreSQL DDL formatting.",
   "type": "module",
-  "main": "./src/index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "files": [
-    "src"
+    "dist"
   ],
   "scripts": {
-    "test": "vitest run"
+    "build": "tsc -p tsconfig.json",
+    "prepublish": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && vitest run"
   },
   "peerDependencies": {
     "prettier": "^3.0.0"
   },
   "devDependencies": {
+    "@types/node": "^24.9.1",
     "dedent-js": "^1.0.1",
     "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }
 }

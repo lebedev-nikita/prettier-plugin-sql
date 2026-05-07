@@ -1,23 +1,23 @@
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import dedent from "dedent-js";
 import prettier from "prettier";
 import { describe, expect, it } from "vitest";
-import plugin from "../src/index.js";
+import plugin from "../dist/index.js";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const fixturePath = path.resolve(rootDir, "../example.sql");
 const exampleSql = readFileSync(fixturePath, "utf8");
 
-async function format(source) {
+async function format(source: string): Promise<string> {
   return prettier.format(source, {
     parser: "sql",
     plugins: [plugin],
   });
 }
 
-async function expectFormat(input, expected) {
+async function expectFormat(input: string, expected: string): Promise<void> {
   await expect(format(input)).resolves.toBe(expected);
 }
 

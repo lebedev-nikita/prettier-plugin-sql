@@ -1,3 +1,15 @@
+import type {
+  CreateDomainStatement,
+  CreateTableStatement,
+  CreateTypeEnumStatement,
+  NullabilityMatch,
+  NullabilityParts,
+  ParsedComments,
+  SqlRootNode,
+  SqlStatement,
+  TableEntry,
+} from "./types.js";
+
 const CLAUSE_STARTERS = new Set([
   "not",
   "null",
@@ -8,20 +20,20 @@ const CLAUSE_STARTERS = new Set([
   "unique",
   "references",
   "check",
-  "collate"
+  "collate",
 ]);
 
-export function parse(text) {
+export function parse(text: string): SqlRootNode {
   const statements = splitStatements(text).map((statement) => parseStatement(statement));
 
   return {
     type: "sql-root",
     raw: text,
-    statements
+    statements,
   };
 }
 
-function parseStatement(rawStatement) {
+function parseStatement(rawStatement: string): SqlStatement {
   const statement = rawStatement.trim();
 
   return (
@@ -29,12 +41,12 @@ function parseStatement(rawStatement) {
     parseCreateType(statement) ??
     parseCreateTable(statement) ?? {
       type: "unsupported",
-      raw: statement
+      raw: statement,
     }
   );
 }
 
-function parseCreateDomain(statement) {
+function parseCreateDomain(statement: string): CreateDomainStatement | null {
   const match = statement.match(/^create\s+domain\s+(.+?)\s+as\s+(.+)$/is);
 
   if (!match) {
@@ -43,30 +55,30 @@ function parseCreateDomain(statement) {
 
   return {
     type: "create_domain",
-    name: match[1].trim(),
-    dataType: normalizeInlineSql(match[2]),
-    raw: statement
+    name: match[1]!.trim(),
+    dataType: normalizeInlineSql(match[2]!),
+    raw: statement,
   };
 }
 
-function parseCreateType(statement) {
+function parseCreateType(statement: string): CreateTypeEnumStatement | null {
   const match = statement.match(/^create\s+type\s+(.+?)\s+as\s+enum\s*\(([\s\S]*)\)$/i);
 
   if (!match) {
     return null;
   }
 
-  const items = splitCommaSeparated(match[2]).map((item) => normalizeInlineSql(item));
+  const items = splitCommaSeparated(match[2]!).map((item) => normalizeInlineSql(item));
 
   return {
     type: "create_type_enum",
-    name: match[1].trim(),
+    name: match[1]!.trim(),
     items,
-    raw: statement
+    raw: statement,
   };
 }
 
-function parseCreateTable(statement) {
+function parseCreateTable(statement: string): CreateTableStatement | null {
   const headerMatch = statement.match(/^create\s+table\s+(if\s+not\s+exists\s+)?(.+?)\s*\(/i);
 
   if (!headerMatch) {
@@ -82,23 +94,26 @@ function parseCreateTable(statement) {
 
   const body = statement.slice(bodyStart + 1, bodyEnd);
   const suffix = normalizeInlineSql(statement.slice(bodyEnd + 1));
-  const entries = splitTableEntries(body).map(parseTableEntry);
+  const rawEntries = splitTableEntries(body);
+  const entries = rawEntries
+    .map(parseTableEntry)
+    .filter((entry): entry is TableEntry => entry !== null);
 
-  if (entries.some((entry) => entry == null)) {
+  if (entries.length !== rawEntries.length) {
     return null;
   }
 
   return {
     type: "create_table",
     ifNotExists: Boolean(headerMatch[1]),
-    name: headerMatch[2].trim(),
+    name: headerMatch[2]!.trim(),
     entries,
     suffix,
-    raw: statement
+    raw: statement,
   };
 }
 
-function parseTableEntry(entry) {
+function parseTableEntry(entry: string): TableEntry | null {
   const trimmed = entry.trim();
 
   if (!trimmed) {
@@ -111,7 +126,7 @@ function parseTableEntry(entry) {
     return {
       type: "comment_only",
       comments,
-      raw: entry
+      raw: entry,
     };
   }
 
@@ -120,7 +135,7 @@ function parseTableEntry(entry) {
       type: "constraint",
       comments,
       content: normalizeInlineSql(content),
-      raw: entry
+      raw: entry,
     };
   }
 
@@ -135,7 +150,7 @@ function parseTableEntry(entry) {
   let clauseIndex = tokens.length;
 
   for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index].toLowerCase();
+    const token = tokens[index]!.toLowerCase();
 
     if (CLAUSE_STARTERS.has(token)) {
       clauseIndex = index;
@@ -158,11 +173,11 @@ function parseTableEntry(entry) {
     dataType,
     nullability,
     extras,
-    raw: entry
+    raw: entry,
   };
 }
 
-function splitNullability(clause) {
+function splitNullability(clause: string): NullabilityParts {
   if (!clause) {
     return { nullability: "", extras: "" };
   }
@@ -172,24 +187,24 @@ function splitNullability(clause) {
 
   if (nullabilityMatch) {
     const extrasTokens = tokens.filter(
-      (_, index) => index < nullabilityMatch.start || index >= nullabilityMatch.end
+      (_, index) => index < nullabilityMatch.start || index >= nullabilityMatch.end,
     );
 
     return {
       nullability: nullabilityMatch.value,
-      extras: normalizeInlineSql(extrasTokens.join(" "))
+      extras: normalizeInlineSql(extrasTokens.join(" ")),
     };
   }
 
   return {
     nullability: "",
-    extras: clause
+    extras: clause,
   };
 }
 
-function findNullabilityTokens(tokens) {
+function findNullabilityTokens(tokens: string[]): NullabilityMatch | null {
   for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index].toLowerCase();
+    const token = tokens[index]!.toLowerCase();
     const nextToken = tokens[index + 1]?.toLowerCase();
     const previousToken = tokens[index - 1]?.toLowerCase();
 
@@ -197,7 +212,7 @@ function findNullabilityTokens(tokens) {
       return {
         start: index,
         end: index + 2,
-        value: "not null"
+        value: "not null",
       };
     }
 
@@ -205,7 +220,7 @@ function findNullabilityTokens(tokens) {
       return {
         start: index,
         end: index + 1,
-        value: "null"
+        value: "null",
       };
     }
   }
@@ -213,8 +228,8 @@ function findNullabilityTokens(tokens) {
   return null;
 }
 
-function splitStatements(source) {
-  const statements = [];
+function splitStatements(source: string): string[] {
+  const statements: string[] = [];
   let start = 0;
   let depth = 0;
   let inSingleQuote = false;
@@ -222,7 +237,7 @@ function splitStatements(source) {
   let inLineComment = false;
 
   for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
+    const char = source[index]!;
     const nextChar = source[index + 1];
 
     if (inLineComment) {
@@ -282,14 +297,14 @@ function splitStatements(source) {
   return statements;
 }
 
-function splitCommaSeparated(source) {
-  const values = [];
+function splitCommaSeparated(source: string): string[] {
+  const values: string[] = [];
   let start = 0;
   let depth = 0;
   let inSingleQuote = false;
 
   for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
+    const char = source[index]!;
 
     if (char === "'" && source[index - 1] !== "\\") {
       inSingleQuote = !inSingleQuote;
@@ -325,8 +340,8 @@ function splitCommaSeparated(source) {
   return values;
 }
 
-function splitTableEntries(source) {
-  const entries = [];
+function splitTableEntries(source: string): string[] {
+  const entries: string[] = [];
   let start = 0;
   let depth = 0;
   let inSingleQuote = false;
@@ -334,7 +349,7 @@ function splitTableEntries(source) {
   let inLineComment = false;
 
   for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
+    const char = source[index]!;
     const nextChar = source[index + 1];
 
     if (inLineComment) {
@@ -389,15 +404,15 @@ function splitTableEntries(source) {
   return entries.filter(Boolean);
 }
 
-function tokenizeSqlSegments(source) {
-  const tokens = [];
+function tokenizeSqlSegments(source: string): string[] {
+  const tokens: string[] = [];
   let current = "";
   let depth = 0;
   let inSingleQuote = false;
   let inDoubleQuote = false;
 
   for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
+    const char = source[index]!;
 
     if (!inDoubleQuote && char === "'" && source[index - 1] !== "\\") {
       inSingleQuote = !inSingleQuote;
@@ -446,8 +461,8 @@ function tokenizeSqlSegments(source) {
   return tokens;
 }
 
-function extractLeadingComments(entry) {
-  const comments = [];
+function extractLeadingComments(entry: string): ParsedComments {
+  const comments: string[] = [];
   let remaining = entry;
 
   while (remaining.startsWith("--")) {
@@ -465,11 +480,11 @@ function extractLeadingComments(entry) {
 
   return {
     comments,
-    content: remaining
+    content: remaining,
   };
 }
 
-function readIdentifier(source) {
+function readIdentifier(source: string): string {
   if (!source) {
     return "";
   }
@@ -483,14 +498,14 @@ function readIdentifier(source) {
   return match ? match[0] : "";
 }
 
-function findMatchingParen(source, openIndex) {
+function findMatchingParen(source: string, openIndex: number): number {
   let depth = 0;
   let inSingleQuote = false;
   let inDoubleQuote = false;
   let inLineComment = false;
 
   for (let index = openIndex; index < source.length; index += 1) {
-    const char = source[index];
+    const char = source[index]!;
     const nextChar = source[index + 1];
 
     if (inLineComment) {
@@ -536,6 +551,6 @@ function findMatchingParen(source, openIndex) {
   return -1;
 }
 
-function normalizeInlineSql(source) {
+function normalizeInlineSql(source: string): string {
   return source.replace(/\s+/g, " ").trim();
 }

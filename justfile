@@ -4,5 +4,7 @@ install:
 test:
   npm run test
 
-publish: install test
+build:
+  npm run build
+publish: install test build
   npm publish --access public

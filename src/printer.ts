@@ -1,3 +1,10 @@
+import type {
+  ColumnEntry,
+  CreateTableStatement,
+  SqlRootNode,
+  SqlStatement,
+} from "./types.js";
+
 const STRUCTURAL_KEYWORDS = new Set([
   "by",
   "constraint",
@@ -7,15 +14,15 @@ const STRUCTURAL_KEYWORDS = new Set([
   "primary",
   "range",
   "references",
-  "unique"
+  "unique",
 ]);
 
-export function printSql(ast) {
+export function printSql(ast: SqlRootNode): string {
   const body = ast.statements.map(printStatement).join("\n\n");
   return body ? `${body}\n` : "";
 }
 
-function printStatement(statement) {
+function printStatement(statement: SqlStatement): string {
   switch (statement.type) {
     case "create_domain":
       return `CREATE DOMAIN ${statement.name} AS ${statement.dataType};`;
@@ -23,23 +30,23 @@ function printStatement(statement) {
       return [
         `CREATE TYPE ${statement.name} AS ENUM (`,
         ...statement.items.map((item, index) =>
-          `  ${item}${index === statement.items.length - 1 ? "" : ","}`
+          `  ${item}${index === statement.items.length - 1 ? "" : ","}`,
         ),
-        ");"
+        ");",
       ].join("\n");
     case "create_table":
       return printCreateTable(statement);
-    default:
+    case "unsupported":
       return normalizeUnsupported(statement.raw);
   }
 }
 
-function printCreateTable(statement) {
+function printCreateTable(statement: CreateTableStatement): string {
   const columns = statement.entries.filter((entry) => entry.type === "column");
   const nameWidth = Math.max(...columns.map((entry) => entry.name.length), 0);
   const typeWidth = Math.max(...columns.map((entry) => entry.dataType.length), 0);
   const nullWidth = Math.max(...columns.map((entry) => entry.nullability.length), 0);
-  const entryLines = [];
+  const entryLines: string[] = [];
 
   statement.entries.forEach((entry, index) => {
     const isLast = index === statement.entries.length - 1;
@@ -53,13 +60,10 @@ function printCreateTable(statement) {
       entryLines.push(...entry.comments);
     }
 
-    let content;
-
-    if (entry.type === "column") {
-      content = formatColumn(entry, { nameWidth, typeWidth, nullWidth });
-    } else {
-      content = formatStructuralSql(entry.content);
-    }
+    const content =
+      entry.type === "column"
+        ? formatColumn(entry, { nameWidth, typeWidth, nullWidth })
+        : formatStructuralSql(entry.content);
 
     entryLines.push(`${content}${isLast ? "" : ","}`);
   });
@@ -77,7 +81,10 @@ function printCreateTable(statement) {
   return lines.join("\n");
 }
 
-function formatColumn(entry, widths) {
+function formatColumn(
+  entry: ColumnEntry,
+  widths: { nameWidth: number; typeWidth: number; nullWidth: number },
+): string {
   const base = `${entry.name.padEnd(widths.nameWidth)} ${entry.dataType.padEnd(widths.typeWidth)}`;
 
   if (!entry.nullability) {
@@ -92,13 +99,13 @@ function formatColumn(entry, widths) {
   return `${base} ${nullability}${suffix}`;
 }
 
-function formatStructuralSql(source) {
+function formatStructuralSql(source: string): string {
   let result = "";
   let token = "";
   let inSingleQuote = false;
   let inDoubleQuote = false;
 
-  const flushToken = () => {
+  const flushToken = (): void => {
     if (!token) {
       return;
     }
@@ -109,7 +116,7 @@ function formatStructuralSql(source) {
   };
 
   for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
+    const char = source[index]!;
 
     if (!inDoubleQuote && char === "'" && source[index - 1] !== "\\") {
       flushToken();
@@ -143,6 +150,6 @@ function formatStructuralSql(source) {
   return result.replace(/([A-Za-z_"][A-Za-z0-9_"]*)\(/g, "$1 (");
 }
 
-function normalizeUnsupported(source) {
-  return source.trim().replace(/\s+\n/g, "\n").trimEnd() + ";";
+function normalizeUnsupported(source: string): string {
+  return `${source.trim().replace(/\s+\n/g, "\n").trimEnd()};`;
 }
