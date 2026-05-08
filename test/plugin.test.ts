@@ -33,14 +33,15 @@ describe("prettier-plugin-sql", () => {
         create domain js_date as timestamptz(3);
         create type ai_request_type as enum('text','code');
       `;
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE DOMAIN js_date AS timestamptz(3);
 
         CREATE TYPE ai_request_type AS ENUM (
             'text',
             'code'
         );
-      `}\n`;
+
+      `;
 
       await expectFormat(input, expected);
     });
@@ -59,12 +60,13 @@ describe("prettier-plugin-sql", () => {
 
     it("normalizes create type enum statements from compact one-line input", async () => {
       const input = "create type ai_request_type as enum('text','code')";
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TYPE ai_request_type AS ENUM (
             'text',
             'code'
         );
-      `}\n`;
+
+      `;
 
       await expectFormat(input, expected);
     });
@@ -78,33 +80,35 @@ describe("prettier-plugin-sql", () => {
           'code'
         )
       `;
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TYPE ai_request_type AS ENUM (
             'text',
             'code'
         );
-      `}\n`;
+
+      `;
 
       await expectFormat(input, expected);
     });
 
     it("formats create table statements with column alignment and unique constraints", async () => {
       const input = dedent`
-      create table if not exists database_x_user(
-      login text not null,
-        database text not null,
-      is_personal boolean not null,
-      constraint database_x_user_un unique(login, database)
-      )
-    `;
-      const expected = `${dedent`
-      CREATE TABLE IF NOT EXISTS database_x_user (
-          login       text    NOT NULL,
-          database    text    NOT NULL,
-          is_personal boolean NOT NULL,
-          CONSTRAINT database_x_user_un UNIQUE (login, database)
-      );
-    `}\n`;
+        create table if not exists database_x_user(
+        login text not null,
+          database text not null,
+        is_personal boolean not null,
+        constraint database_x_user_un unique(login, database)
+        )
+      `;
+      const expected = dedent`
+        CREATE TABLE IF NOT EXISTS database_x_user (
+            login       text    NOT NULL,
+            database    text    NOT NULL,
+            is_personal boolean NOT NULL,
+            CONSTRAINT database_x_user_un UNIQUE (login, database)
+        );
+
+      `;
 
       await expectFormat(input, expected);
     });
@@ -165,11 +169,12 @@ describe("prettier-plugin-sql", () => {
 
     it("formats generated always as identity columns from compact input", async () => {
       const input = "create table job(job_id integer generated always as identity)";
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TABLE job (
             job_id integer GENERATED ALWAYS AS IDENTITY
         );
-      `}\n`;
+
+      `;
 
       await expectFormat(input, expected);
     });
@@ -196,7 +201,7 @@ describe("prettier-plugin-sql", () => {
           "by"     integer null
         );
       `;
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TABLE IF NOT EXISTS history_iref_spec_cluster_mapping (
             norm_id  bigint  NULL,
             block_id integer NULL,
@@ -205,7 +210,8 @@ describe("prettier-plugin-sql", () => {
             at       js_date NULL,
             "by"     integer NULL
         );
-      `}\n`;
+
+      `;
       await expectFormat(input, expected);
     });
 
@@ -218,14 +224,15 @@ describe("prettier-plugin-sql", () => {
               CONSTRAINT shared_database_un UNIQUE (login, shared_login)
             );
       `;
-      const expected = `${dedent`
+      const expected = dedent`
           CREATE TABLE IF NOT EXISTS shared_database (
               login        text    NOT NULL,
               shared_login text    NOT NULL,
               created_at   js_date NOT NULL DEFAULT now(),
               CONSTRAINT shared_database_un UNIQUE (login, shared_login)
           );
-      `}\n`;
+
+      `;
       await expectFormat(input, expected);
     });
 
@@ -237,13 +244,14 @@ describe("prettier-plugin-sql", () => {
           error text null
         )
       `;
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TABLE ai_request (
             login       text NOT NULL,
             full_output text     NULL,
             error       text     NULL
         );
-      `}\n`;
+
+      `;
 
       await expectFormat(input, expected);
     });
@@ -258,14 +266,15 @@ describe("prettier-plugin-sql", () => {
         );
       `;
 
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TABLE IF NOT EXISTS database_x_user (
             login       text    NOT NULL,
             database    text    NOT NULL,
             is_personal boolean NOT NULL,
             CONSTRAINT database_x_user_un UNIQUE (login, database)
         );
-      `}\n`;
+
+      `;
       await expectFormat(input, expected);
     });
 
@@ -279,7 +288,7 @@ describe("prettier-plugin-sql", () => {
             CONSTRAINT actual_assignee_pkey PRIMARY KEY (norm_id)
         );
       `;
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TABLE IF NOT EXISTS actual_assignee (
             norm_id bigint      NULL,
             value   integer     NULL,
@@ -287,7 +296,8 @@ describe("prettier-plugin-sql", () => {
             "by"    integer     NULL,
             CONSTRAINT actual_assignee_pkey PRIMARY KEY (norm_id)
         );
-      `}\n`;
+
+      `;
       await expectFormat(input, expected);
     });
   });
@@ -300,12 +310,13 @@ describe("prettier-plugin-sql", () => {
           b int DEFAULT 10     null
         );
       `;
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TABLE abc (
             a int NOT NULL DEFAULT 10,
             b int     NULL DEFAULT 10
         );
-      `}\n`;
+
+      `;
       await expectFormat(input, expected);
     });
 
@@ -317,13 +328,14 @@ describe("prettier-plugin-sql", () => {
           created_at timestamp not null
         )
       `;
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TABLE job (
             job_id     integer   GENERATED ALWAYS AS IDENTITY,
             -- important note
             created_at timestamp NOT NULL
         );
-      `}\n`;
+
+      `;
 
       await expectFormat(input, expected);
     });
@@ -335,12 +347,13 @@ describe("prettier-plugin-sql", () => {
           database varchar(50) not null
         )
       `;
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TABLE database (
             "table"  varchar(50) NOT NULL,
             database varchar(50) NOT NULL
         );
-      `}\n`;
+
+      `;
 
       await expectFormat(input, expected);
     });
@@ -354,12 +367,13 @@ describe("prettier-plugin-sql", () => {
           constraint status_fk foreign key(status_id) references dict_job_status(id)
         ) partition by range(created_at)
       `;
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TABLE job (
             status_id integer NOT NULL,
             CONSTRAINT status_fk FOREIGN KEY (status_id) REFERENCES dict_job_status (id)
         ) PARTITION BY RANGE (created_at);
-      `}\n`;
+
+      `;
 
       await expectFormat(input, expected);
     });
@@ -372,13 +386,14 @@ describe("prettier-plugin-sql", () => {
           is_active boolean not null DEFAULT true
         )
       `;
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TABLE shared_database (
             login      text    NOT NULL,
             created_at js_date NOT NULL DEFAULT now(),
             is_active  boolean NOT NULL DEFAULT true
         );
-      `}\n`;
+
+      `;
 
       await expectFormat(input, expected);
     });
@@ -390,12 +405,13 @@ describe("prettier-plugin-sql", () => {
             CONSTRAINT shared_database_un UNIQUE (login, shared_login)
         );
       `;
-      const expected = `${dedent`
+      const expected = dedent`
         CREATE TABLE IF NOT EXISTS shared_database (
             created_at js_date NOT NULL DEFAULT now(),
             CONSTRAINT shared_database_un UNIQUE (login, shared_login)
         );
-      `}\n`;
+
+      `;
 
       await expectFormat(input, expected);
     });
