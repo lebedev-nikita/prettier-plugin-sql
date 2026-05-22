@@ -34,6 +34,15 @@ const CLAUSE_STARTERS = new Set([
   "collate",
 ]);
 
+const TABLE_CONSTRAINT_STARTERS = [
+  /^constraint\b/i,
+  /^primary\s+key\b/i,
+  /^unique\b/i,
+  /^foreign\s+key\b/i,
+  /^check\s*\(/i,
+  /^exclude\b/i,
+];
+
 export function parse(text: string): SqlRootNode {
   const parsed = parseSync(text) as ParseResult;
   const rawStatements = splitStatements(text);
@@ -216,7 +225,7 @@ function parseTableEntry(entry: string): TableEntry | null {
     };
   }
 
-  if (/^constraint\b/i.test(content)) {
+  if (TABLE_CONSTRAINT_STARTERS.some((pattern) => pattern.test(content))) {
     return {
       type: "constraint",
       comments,

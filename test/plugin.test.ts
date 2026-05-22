@@ -6,6 +6,7 @@ import prettier from "prettier";
 import { describe, expect, it } from "vitest";
 import plugin from "../src/index.js";
 import { exec } from "node:child_process";
+import { deepEqual } from "node:assert";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const fixturePath = path.resolve(rootDir, "../example.sql");
@@ -177,6 +178,34 @@ describe("prettier-plugin-sql", () => {
       `;
 
       await expectFormat(input, expected);
+    });
+
+    it("does not add NULL to the end of primary key", async () => {
+      const input = dedent`
+        CREATE TABLE IF NOT EXISTS static (
+            norm_id            bigint    NULL,
+            label_data         jsonb     NULL,
+            iref_after_queries jsonb     NULL,
+            iref_spec_queries  jsonb     NULL,
+            size               norm_size NULL,
+            updated_at         js_date   NULL,
+            PRIMARY KEY (norm_id, updatedat)
+        );
+      `;
+      const output = dedent`
+        CREATE TABLE IF NOT EXISTS static (
+            norm_id            bigint    NULL,
+            label_data         jsonb     NULL,
+            iref_after_queries jsonb     NULL,
+            iref_spec_queries  jsonb     NULL,
+            size               norm_size NULL,
+            updated_at         js_date   NULL,
+            PRIMARY KEY (norm_id, updatedat)
+        );
+
+      `;
+
+      await expectFormat(input, output);
     });
 
     it("leaves unsupported SQL unchanged apart from trailing semicolon normalization", async () => {
