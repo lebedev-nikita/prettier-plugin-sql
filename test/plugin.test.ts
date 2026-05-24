@@ -244,22 +244,45 @@ describe("prettier-plugin-sql", () => {
       await expectFormat(input, expected);
     });
 
+    it("removes spaces in the start and in the end of columns", async () => {
+      const input = dedent`
+        CREATE TABLE tag_2_note (
+            tag_id  uuid NOT NULL REFERENCES tag (tag_id),
+            note_id uuid NOT NULL REFERENCES note (note_id),
+            user_id uuid NOT NULL,
+            PRIMARY KEY ( tag_id, note_id )
+        );
+      `;
+
+      const output = dedent`
+        CREATE TABLE tag_2_note (
+            tag_id  uuid NOT NULL REFERENCES tag (tag_id),
+            note_id uuid NOT NULL REFERENCES note (note_id),
+            user_id uuid NOT NULL,
+            PRIMARY KEY (tag_id, note_id)
+        );
+
+      `;
+
+      await expectFormat(input, output);
+    });
+
     it("fixes indentation not only at the first line", async () => {
       const input = dedent`
-        CREATE TABLE IF NOT EXISTS shared_database (
-              login        text    not null,
-              shared_login text    not null,
-              created_at   js_date not null DEFAULT now(),
-              CONSTRAINT shared_database_un UNIQUE (login, shared_login)
-            );
+      CREATE TABLE IF NOT EXISTS shared_database (
+            login        text    not null,
+            shared_login text    not null,
+            created_at   js_date not null DEFAULT now(),
+            CONSTRAINT shared_database_un UNIQUE (login, shared_login)
+          );
       `;
       const expected = dedent`
-          CREATE TABLE IF NOT EXISTS shared_database (
-              login        text    NOT NULL,
-              shared_login text    NOT NULL,
-              created_at   js_date NOT NULL DEFAULT now(),
-              CONSTRAINT shared_database_un UNIQUE (login, shared_login)
-          );
+        CREATE TABLE IF NOT EXISTS shared_database (
+            login        text    NOT NULL,
+            shared_login text    NOT NULL,
+            created_at   js_date NOT NULL DEFAULT now(),
+            CONSTRAINT shared_database_un UNIQUE (login, shared_login)
+        );
 
       `;
       await expectFormat(input, expected);

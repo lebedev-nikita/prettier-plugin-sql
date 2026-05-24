@@ -132,7 +132,10 @@ function formatColumn(
 
 function formatStructuralSql(source: string): string {
   const normalized = normalizeKeywordCasing(source, STRUCTURAL_KEYWORDS);
-  return normalized.replace(/([A-Za-z_"][A-Za-z0-9_"]*)\(/g, "$1 (");
+  return normalized
+    .replace(/([A-Za-z_"][A-Za-z0-9_"]*)\(/g, "$1 (")
+    .replace(/\(\s+/g, "(")
+    .replace(/\s+\)/g, ")");
 }
 
 function formatColumnExtras(source: string): string {
