@@ -1,6 +1,6 @@
 {
   "name": "@lebedevna/prettier-plugin-sql",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Prettier plugin for PostgreSQL DDL formatting.",
   "type": "module",
   "main": "./dist/index.js",
