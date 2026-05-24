@@ -386,6 +386,25 @@ describe("prettier-plugin-sql", () => {
 
       await expectFormat(input, expected);
     });
+
+    it("removes trailing commas if needed", async () => {
+      const input = dedent`
+        CREATE TABLE abc (
+          a int NULL,
+          b int NULL,
+        )
+      `;
+
+      const output = dedent`
+        CREATE TABLE abc (
+            a int NULL,
+            b int NULL
+        );
+
+      `;
+
+      await expectFormat(input, output);
+    });
   });
 
   describe("casing", () => {

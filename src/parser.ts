@@ -44,17 +44,114 @@ const TABLE_CONSTRAINT_STARTERS = [
 ];
 
 export function parse(text: string): SqlRootNode {
-  const parsed = parseSync(text) as ParseResult;
-  const rawStatements = splitStatements(text);
+  const normalizedText = removeTrailingListCommas(text);
+  const parsed = parseSync(normalizedText) as ParseResult;
+  const rawStatements = splitStatements(normalizedText);
   const statements = (parsed.stmts ?? []).map((statement, index, allStatements) =>
-    parseStatement(text, rawStatements[index], statement, index, allStatements),
+    parseStatement(normalizedText, rawStatements[index], statement, index, allStatements),
   );
 
   return {
     type: "sql-root",
-    raw: text,
+    raw: normalizedText,
     statements,
   };
+}
+
+function removeTrailingListCommas(source: string): string {
+  let result = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let inLineComment = false;
+  let dollarQuoteTag: string | null = null;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index]!;
+    const nextChar = source[index + 1];
+
+    if (inLineComment) {
+      if (char === "\n") {
+        inLineComment = false;
+      }
+
+      result += char;
+      continue;
+    }
+
+    if (!inSingleQuote && !inDoubleQuote && char === "$") {
+      const dollarQuoteMatch = source.slice(index).match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/);
+
+      if (dollarQuoteMatch) {
+        const tag = dollarQuoteMatch[0]!;
+
+        if (dollarQuoteTag === tag) {
+          dollarQuoteTag = null;
+        } else if (dollarQuoteTag === null) {
+          dollarQuoteTag = tag;
+        }
+
+        result += tag;
+        index += tag.length - 1;
+        continue;
+      }
+    }
+
+    if (dollarQuoteTag) {
+      result += char;
+      continue;
+    }
+
+    if (!inDoubleQuote && char === "'" && source[index - 1] !== "\\") {
+      inSingleQuote = !inSingleQuote;
+      result += char;
+      continue;
+    }
+
+    if (!inSingleQuote && char === '"') {
+      inDoubleQuote = !inDoubleQuote;
+      result += char;
+      continue;
+    }
+
+    if (inSingleQuote || inDoubleQuote) {
+      result += char;
+      continue;
+    }
+
+    if (char === "-" && nextChar === "-") {
+      inLineComment = true;
+      result += char;
+      continue;
+    }
+
+    if (char === "," && isTrailingListComma(source, index)) {
+      continue;
+    }
+
+    result += char;
+  }
+
+  return result;
+}
+
+function isTrailingListComma(source: string, commaIndex: number): boolean {
+  let previousIndex = commaIndex - 1;
+
+  while (previousIndex >= 0 && /\s/.test(source[previousIndex]!)) {
+    previousIndex -= 1;
+  }
+
+  if (source[previousIndex] === ",") {
+    return false;
+  }
+
+  let nextIndex = commaIndex + 1;
+
+  while (nextIndex < source.length && /\s/.test(source[nextIndex]!)) {
+    nextIndex += 1;
+  }
+
+  return source[nextIndex] === ")";
 }
 
 function parseStatement(
