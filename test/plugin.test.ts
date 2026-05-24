@@ -288,6 +288,30 @@ describe("prettier-plugin-sql", () => {
       await expectFormat(input, expected);
     });
 
+    it("indents foreign keys ", async () => {
+      const input = dedent`
+        CREATE TABLE tag (
+            tag_id       uuid        PRIMARY KEY,
+            workspace_id uuid        NOT NULL REFERENCES workspace( workspace_id ),
+            name         text        NOT NULL,
+            color        text            NULL,
+            created_at   timestamptz NOT NULL
+        );
+      `;
+      const output = dedent`
+        CREATE TABLE tag (
+            tag_id       uuid        PRIMARY KEY,
+            workspace_id uuid        NOT NULL REFERENCES workspace (workspace_id),
+            name         text        NOT NULL,
+            color        text            NULL,
+            created_at   timestamptz NOT NULL
+        );
+
+      `;
+
+      await expectFormat(input, output);
+    });
+
     it("aligns nullable columns without extra clauses", async () => {
       const input = dedent`
         CREATE TABLE ai_request(
@@ -408,6 +432,43 @@ describe("prettier-plugin-sql", () => {
       `;
 
       await expectFormat(input, expected);
+    });
+
+    it("supports generated columns", async () => {
+      const input = dedent`
+        CREATE TABLE chunk (
+            id            uuid        PRIMARY KEY,
+            document_id   uuid        NOT NULL REFERENCES documents(id),
+            workspace_id  uuid        NOT NULL REFERENCES workspaces(id),
+            chunk_index   int         NOT NULL,
+            content       text        NOT NULL,
+            search_vector tsvector    NOT NULL GENERATED ALWAYS AS (to_tsvector('english', content)) STORED,
+            token_count   int             NULL,
+            char_start    int             NULL,
+            char_end      int             NULL,
+            heading       text            NULL,
+            metadata      jsonb           NULL,
+            created_at    timestamptz NOT NULL
+        );
+      `;
+      const output = dedent`
+        CREATE TABLE chunk (
+            id            uuid        PRIMARY KEY,
+            document_id   uuid        NOT NULL REFERENCES documents (id),
+            workspace_id  uuid        NOT NULL REFERENCES workspaces (id),
+            chunk_index   int         NOT NULL,
+            content       text        NOT NULL,
+            search_vector tsvector    NOT NULL GENERATED ALWAYS AS (to_tsvector('english', content)) STORED,
+            token_count   int             NULL,
+            char_start    int             NULL,
+            char_end      int             NULL,
+            heading       text            NULL,
+            metadata      jsonb           NULL,
+            created_at    timestamptz NOT NULL
+        );
+
+      `;
+      await expectFormat(input, output);
     });
 
     it("removes trailing commas if needed", async () => {

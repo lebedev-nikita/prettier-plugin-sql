@@ -183,7 +183,14 @@ function formatStructuralSql(source: string): string {
 }
 
 function formatColumnExtras(source: string): string {
-  return normalizeKeywordCasing(source, COLUMN_EXTRA_KEYWORDS);
+  return normalizeReferenceClauseSpacing(normalizeKeywordCasing(source, COLUMN_EXTRA_KEYWORDS));
+}
+
+function normalizeReferenceClauseSpacing(source: string): string {
+  return source.replace(
+    /\b(REFERENCES\s+(?:"[^"]+"|[A-Za-z_][A-Za-z0-9_$]*)(?:\s*\.\s*(?:"[^"]+"|[A-Za-z_][A-Za-z0-9_$]*))*)\s*\(\s*([^)]*?)\s*\)/g,
+    "$1 ($2)",
+  );
 }
 
 function formatCreateIndexSuffix(source: string): string {
