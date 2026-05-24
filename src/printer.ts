@@ -1,4 +1,10 @@
-import type { ColumnEntry, CreateTableStatement, SqlRootNode, SqlStatement } from "./types.js";
+import type {
+  ColumnEntry,
+  CreateIndexStatement,
+  CreateTableStatement,
+  SqlRootNode,
+  SqlStatement,
+} from "./types.js";
 
 const STRUCTURAL_KEYWORDS = new Set([
   "by",
@@ -36,6 +42,19 @@ const COLUMN_EXTRA_KEYWORDS = new Set([
   "unique",
   "update",
 ]);
+const INDEX_KEYWORDS = new Set([
+  "concurrently",
+  "create",
+  "exists",
+  "if",
+  "include",
+  "index",
+  "not",
+  "on",
+  "using",
+  "unique",
+  "where",
+]);
 
 type PrintOptions = {};
 
@@ -63,9 +82,34 @@ function printStatement(statement: SqlStatement, indentation: string): string {
       ].join("\n");
     case "create_table":
       return printCreateTable(statement, indentation);
+    case "create_index":
+      return printCreateIndex(statement);
     case "unsupported":
       return normalizeUnsupported(statement.raw);
   }
+}
+
+function printCreateIndex(statement: CreateIndexStatement): string {
+  const head = [
+    "CREATE",
+    statement.unique ? "UNIQUE" : "",
+    "INDEX",
+    statement.concurrently ? "CONCURRENTLY" : "",
+    statement.ifNotExists ? "IF NOT EXISTS" : "",
+    statement.name,
+    "ON",
+    statement.relation,
+  ].filter(Boolean);
+  const lines = [head.join(" ")];
+  const params = statement.params.map((param) => formatStructuralSql(param)).join(", ");
+
+  if (statement.accessMethod) {
+    lines.push(`USING ${statement.accessMethod} (${params})${formatCreateIndexSuffix(statement.suffix)};`);
+  } else {
+    lines[0] += ` (${params})${formatCreateIndexSuffix(statement.suffix)};`;
+  }
+
+  return lines.join("\n");
 }
 
 function printCreateTable(statement: CreateTableStatement, indentation: string): string {
@@ -142,6 +186,14 @@ function formatColumnExtras(source: string): string {
   return normalizeKeywordCasing(source, COLUMN_EXTRA_KEYWORDS);
 }
 
+function formatCreateIndexSuffix(source: string): string {
+  if (!source) {
+    return "";
+  }
+
+  return ` ${normalizeKeywordCasing(source, INDEX_KEYWORDS)}`;
+}
+
 function normalizeKeywordCasing(source: string, keywords: Set<string>): string {
   let result = "";
   let token = "";
@@ -194,8 +246,14 @@ function normalizeKeywordCasing(source: string, keywords: Set<string>): string {
 }
 
 function normalizeUnsupported(source: string): string {
-  return `${source
+  const normalized = source
     .trim()
     .replace(/[ \t]+\n/g, "\n")
-    .trimEnd()};`;
+    .trimEnd();
+
+  if (/^create\s+(unique\s+)?index\b/i.test(normalized)) {
+    return `${normalizeKeywordCasing(normalized, INDEX_KEYWORDS)};`;
+  }
+
+  return `${normalized};`;
 }

@@ -2,13 +2,16 @@ import { loadModule, parseSync } from "pgsql-parser";
 import type {
   CreateDomainStmt,
   CreateEnumStmt,
+  IndexStmt,
   CreateStmt,
   Node,
   ParseResult,
+  RangeVar,
   RawStmt,
 } from "@pgsql/types";
 import type {
   CreateDomainStatement,
+  CreateIndexStatement,
   CreateTableStatement,
   CreateTypeEnumStatement,
   NullabilityMatch,
@@ -176,6 +179,10 @@ function parseStatement(
     return parseCreateTable(node.CreateStmt, raw) ?? unsupportedStatement(raw);
   }
 
+  if (node && "IndexStmt" in node) {
+    return parseCreateIndex(node.IndexStmt, raw) ?? unsupportedStatement(raw);
+  }
+
   return unsupportedStatement(raw);
 }
 
@@ -260,11 +267,74 @@ function parseCreateTable(statement: CreateStmt, rawStatement: string): CreateTa
   };
 }
 
+function parseCreateIndex(statement: IndexStmt, rawStatement: string): CreateIndexStatement | null {
+  const relation = formatRangeVar(statement.relation);
+  const params = (statement.indexParams ?? []).map(parseIndexParam);
+
+  if (!relation || params.length === 0 || params.some((param) => !param)) {
+    return null;
+  }
+
+  return {
+    type: "create_index",
+    unique: Boolean(statement.unique),
+    concurrently: Boolean(statement.concurrent),
+    ifNotExists: Boolean(statement.if_not_exists),
+    name: statement.idxname ?? "",
+    relation,
+    accessMethod: statement.accessMethod ?? "",
+    params: params as string[],
+    suffix: readCreateIndexSuffix(rawStatement),
+    raw: rawStatement,
+  };
+}
+
 function unsupportedStatement(rawStatement: string): SqlStatement {
   return {
     type: "unsupported",
     raw: normalizeStatementSource(rawStatement),
   };
+}
+
+function parseIndexParam(node: Node): string | null {
+  if (!("IndexElem" in node)) {
+    return null;
+  }
+
+  const element = node.IndexElem;
+
+  if (element.expr || !element.name) {
+    return null;
+  }
+
+  const opclass = joinQualifiedName(element.opclass);
+  return opclass ? `${quoteIdentifier(element.name)} ${opclass}` : quoteIdentifier(element.name);
+}
+
+function formatRangeVar(range: RangeVar | undefined): string {
+  if (!range?.relname) {
+    return "";
+  }
+
+  return [range.catalogname, range.schemaname, range.relname]
+    .filter((part): part is string => Boolean(part))
+    .map(quoteIdentifier)
+    .join(".");
+}
+
+function quoteIdentifier(value: string): string {
+  return /^[A-Za-z_][A-Za-z0-9_$]*$/.test(value) ? value : `"${value.replace(/"/g, '""')}"`;
+}
+
+function readCreateIndexSuffix(rawStatement: string): string {
+  const parenStart = rawStatement.indexOf("(");
+  const parenEnd = findMatchingParen(rawStatement, parenStart);
+
+  if (parenStart === -1 || parenEnd === -1) {
+    return "";
+  }
+
+  return normalizeInlineSql(rawStatement.slice(parenEnd + 1));
 }
 
 function isSupportedCreateTable(statement: CreateStmt): boolean {
@@ -287,7 +357,7 @@ function joinQualifiedName(nodes: Node[] | undefined): string {
   return (nodes ?? [])
     .map((node) => {
       const value = readStringNode(node);
-      return /^[A-Za-z_][A-Za-z0-9_$]*$/.test(value) ? value : `"${value.replace(/"/g, '""')}"`;
+      return quoteIdentifier(value);
     })
     .join(".");
 }

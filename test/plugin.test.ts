@@ -486,5 +486,18 @@ describe("prettier-plugin-sql", () => {
 
       await expectFormat(input, expected);
     });
+
+    it("uppercases indexes", async () => {
+      const input = dedent`
+        create index on chunk_embeddings
+        using hnsw (embedding vector_cosine_ops);
+      `;
+      const output = dedent`
+        CREATE INDEX ON chunk_embeddings
+        USING hnsw (embedding vector_cosine_ops);
+
+      `;
+      await expectFormat(input, output);
+    });
   });
 });

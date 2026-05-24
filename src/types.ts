@@ -7,6 +7,7 @@ export type SqlRootNode = {
 export type SqlStatement =
   | CreateDomainStatement
   | CreateTypeEnumStatement
+  | CreateIndexStatement
   | CreateTableStatement
   | UnsupportedStatement;
 
@@ -29,6 +30,19 @@ export type CreateTableStatement = {
   ifNotExists: boolean;
   name: string;
   entries: TableEntry[];
+  suffix: string;
+  raw: string;
+};
+
+export type CreateIndexStatement = {
+  type: "create_index";
+  unique: boolean;
+  concurrently: boolean;
+  ifNotExists: boolean;
+  name: string;
+  relation: string;
+  accessMethod: string;
+  params: string[];
   suffix: string;
   raw: string;
 };
