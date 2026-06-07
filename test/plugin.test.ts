@@ -59,6 +59,11 @@ describe("prettier-plugin-sql", () => {
       await expectFormat(input, "CREATE DOMAIN js_date AS timestamptz(3);\n");
     });
 
+    it("lowercases data types in create domain statements", async () => {
+      const input = "CREATE DOMAIN event_time AS TIMESTAMP(3) WITH TIME ZONE";
+      await expectFormat(input, "CREATE DOMAIN event_time AS timestamp(3) with time zone;\n");
+    });
+
     it("normalizes create type enum statements from compact one-line input", async () => {
       const input = "create type ai_request_type as enum('text','code')";
       const expected = dedent`
@@ -427,6 +432,28 @@ describe("prettier-plugin-sql", () => {
         CREATE TABLE database (
             "table"  varchar(50) NOT NULL,
             database varchar(50) NOT NULL
+        );
+
+      `;
+
+      await expectFormat(input, expected);
+    });
+
+    it("lowercases column data types while preserving quoted type names", async () => {
+      const input = dedent`
+        CREATE TABLE measurements (
+          measured_at TIMESTAMP(3) WITH TIME ZONE not null,
+          reading DOUBLE PRECISION,
+          tags VARCHAR(20)[],
+          custom PUBLIC."ExactType"
+        )
+      `;
+      const expected = dedent`
+        CREATE TABLE measurements (
+            measured_at timestamp(3) with time zone NOT NULL,
+            reading     double precision                NULL,
+            tags        varchar(20)[]                   NULL,
+            custom      public."ExactType"              NULL
         );
 
       `;

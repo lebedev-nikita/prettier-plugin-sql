@@ -71,7 +71,7 @@ export function printSql(ast: SqlRootNode, options: PrintOptions = {}): string {
 function printStatement(statement: SqlStatement, indentation: string): string {
   switch (statement.type) {
     case "create_domain":
-      return `CREATE DOMAIN ${statement.name} AS ${statement.dataType};`;
+      return `CREATE DOMAIN ${statement.name} AS ${formatDataType(statement.dataType)};`;
     case "create_type_enum":
       return [
         `CREATE TYPE ${statement.name} AS ENUM (`,
@@ -115,7 +115,7 @@ function printCreateIndex(statement: CreateIndexStatement): string {
 function printCreateTable(statement: CreateTableStatement, indentation: string): string {
   const columns = statement.entries.filter((entry) => entry.type === "column");
   const nameWidth = Math.max(...columns.map((entry) => entry.name.length), 0);
-  const typeWidth = Math.max(...columns.map((entry) => entry.dataType.length), 0);
+  const typeWidth = Math.max(...columns.map((entry) => formatDataType(entry.dataType).length), 0);
   const nullWidth = Math.max(...columns.map((entry) => entry.nullability.length), 0);
   const entryLines: string[] = [];
 
@@ -158,7 +158,8 @@ function formatColumn(
   entry: ColumnEntry,
   widths: { nameWidth: number; typeWidth: number; nullWidth: number }
 ): string {
-  const base = `${entry.name.padEnd(widths.nameWidth)} ${entry.dataType.padEnd(widths.typeWidth)}`;
+  const dataType = formatDataType(entry.dataType);
+  const base = `${entry.name.padEnd(widths.nameWidth)} ${dataType.padEnd(widths.typeWidth)}`;
   const extras = entry.extras ? formatColumnExtras(entry.extras) : "";
 
   if (!entry.nullability) {
@@ -172,6 +173,60 @@ function formatColumn(
       : renderedNullability.padStart(widths.nullWidth);
   const suffix = extras ? ` ${extras}` : "";
   return `${base} ${nullability}${suffix}`.trimEnd();
+}
+
+function formatDataType(source: string): string {
+  let result = "";
+  let token = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+
+  const flushToken = (): void => {
+    result += token.toLowerCase();
+    token = "";
+  };
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index]!;
+
+    if (!inDoubleQuote && char === "'") {
+      flushToken();
+      result += char;
+
+      if (inSingleQuote && source[index + 1] === "'") {
+        result += source[index + 1];
+        index += 1;
+      } else {
+        inSingleQuote = !inSingleQuote;
+      }
+      continue;
+    }
+
+    if (!inSingleQuote && char === '"') {
+      flushToken();
+      result += char;
+
+      if (inDoubleQuote && source[index + 1] === '"') {
+        result += source[index + 1];
+        index += 1;
+      } else {
+        inDoubleQuote = !inDoubleQuote;
+      }
+      continue;
+    }
+
+    if (inSingleQuote || inDoubleQuote) {
+      result += char;
+    } else if (/[A-Za-z_]/.test(char)) {
+      token += char;
+    } else {
+      flushToken();
+      result += char;
+    }
+  }
+
+  flushToken();
+  return result;
 }
 
 function formatStructuralSql(source: string): string {
