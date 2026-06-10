@@ -401,6 +401,30 @@ describe("prettier-plugin-sql", () => {
       await expectFormat(input, expected);
     });
 
+    it("adds NULL before DEFAULT when nullability is implicit", async () => {
+      const input = dedent`
+        CREATE TABLE IF NOT EXISTS bad_cluster_candidate_hint (
+            cluster_hash bigint      NULL,
+            hint_hash    bigint      NULL,
+            login        varchar(32) NULL,
+            inserted_at  timestamp   DEFAULT now(),
+            snapshot     jsonb       NULL
+        );
+      `;
+      const expected = dedent`
+        CREATE TABLE IF NOT EXISTS bad_cluster_candidate_hint (
+            cluster_hash bigint      NULL,
+            hint_hash    bigint      NULL,
+            login        varchar(32) NULL,
+            inserted_at  timestamp   NULL DEFAULT now(),
+            snapshot     jsonb       NULL
+        );
+
+      `;
+
+      await expectFormat(input, expected);
+    });
+
     it("preserves inline comments above columns", async () => {
       const input = dedent`
         CREATE TABLE job(

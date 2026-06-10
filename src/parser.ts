@@ -427,7 +427,8 @@ function parseTableEntry(entry: string): TableEntry | null {
   const dataType = normalizeInlineSql(tokens.slice(0, clauseIndex).join(" "));
   const clause = normalizeInlineSql(tokens.slice(clauseIndex).join(" "));
   const { nullability, extras } = splitNullability(clause);
-  const normalizedNullability = clause ? nullability : "null";
+  const normalizedNullability =
+    nullability || (!clause || /^default\b/i.test(clause) ? "null" : "");
 
   return {
     type: "column",
